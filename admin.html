@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADMINISTRACIÓN - Control de Flota</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans pb-12">
+
+    <header class="bg-blue-900 text-white shadow-lg p-4 mb-6">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <span class="text-3xl">⚙️</span>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-wide">PANEL DE ADMINISTRACIÓN</h1>
+                    <p class="text-xs text-blue-200">Sincronización en vivo con Firebase</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 bg-blue-800 p-2 rounded-lg border border-blue-700">
+                <label for="vehiculoSelect" class="font-semibold text-sm">Vehículo:</label>
+                <select id="vehiculoSelect" onchange="cambiarVehiculo()" class="bg-white text-gray-900 font-bold py-1 px-3 rounded shadow text-sm outline-none">
+                    <option value="auto1">🚗 ETIOS AG00GDV</option>
+                    <option value="auto2">🚗 CRONOS AG874IM</option>
+                    <option value="camioneta1">🚐 IVECO AH507WL</option>
+                    <option value="camioneta2">🚐 IVECO AG126BE</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="space-y-6">
+            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-blue-600">
+                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📄 Datos del Vehículo</h2>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div><label class="block text-xs font-semibold text-gray-500">PATENTE</label><input type="text" id="v_patente" oninput="guardarFormulario()" class="w-full border p-1 rounded font-bold uppercase"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500">MARCA / MODELO</label><input type="text" id="v_marca" oninput="guardarFormulario()" class="w-full border p-1 rounded"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500">AÑO</label><input type="text" id="v_anio" oninput="guardarFormulario()" class="w-full border p-1 rounded"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500">KM ACTUAL</label><input type="number" id="v_km" oninput="guardarFormulario()" class="w-full border p-1 rounded font-bold text-blue-600"></div>
+                </div>
+            </section>
+
+            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-yellow-500">
+                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📅 Vencimientos Importantes</h2>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center"><span>🛡️ Seguro:</span><input type="date" id="venc_seguro" oninput="guardarFormulario()" class="border p-1 rounded text-xs"></div>
+                    <div class="flex justify-between items-center"><span>🔍 VTV:</span><input type="date" id="venc_vtv" oninput="guardarFormulario()" class="border p-1 rounded text-xs"></div>
+                    <div class="flex justify-between items-center"><span>⚙️ RTO:</span><input type="date" id="venc_rto" oninput="guardarFormulario()" class="border p-1 rounded text-xs"></div>
+                    <div class="flex justify-between items-center"><span>🧯 Matafuego:</span><input type="date" id="venc_matafuego" oninput="guardarFormulario()" class="border p-1 rounded text-xs"></div>
+                </div>
+            </section>
+
+            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-green-500">
+                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📋 Control Chequeo Rápido</h2>
+                <div id="checklistContainer" class="grid grid-cols-2 gap-2 text-sm"></div>
+                <div class="mt-4">
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">NOTAS / OBSERVACIONES</label>
+                    <textarea id="checklistNotas" rows="4" oninput="guardarFormulario()" class="w-full border p-2 rounded resize-y text-sm"></textarea>
+                </div>
+            </section>
+        </div>
+
+        <div class="md:col-span-2 space-y-6">
+            <section class="bg-white p-5 rounded-xl shadow-md">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-gray-700">🔧 Mantenimientos Realizados</h2>
+                    <button type="button" onclick="document.getElementById('formService').classList.toggle('hidden')" class="bg-blue-600 text-white text-xs px-3 py-2 rounded shadow font-semibold">+ Agregar Service</button>
+                </div>
+                <form id="formService" onsubmit="guardarMantenimiento(event)" class="hidden bg-blue-50 p-3 rounded-lg border mb-4 space-y-2 text-xs">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <input type="date" id="service_fecha" required class="p-2 border rounded">
+                        <input type="number" id="service_km" placeholder="KM Service" required class="p-2 border rounded">
+                        <input type="text" id="service_trabajo" placeholder="Trabajo" required class="p-2 border rounded">
+                        <input type="number" id="service_prox" placeholder="Próx. Service (KM)" class="p-2 border rounded">
+                    </div>
+                    <input type="text" id="service_obs" placeholder="Observaciones" class="w-full p-2 border rounded">
+                    <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded">Guardar Service</button>
+                </form>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-100 border-b">
+                            <tr><th>Fecha</th><th>KM</th><th>Trabajo</th><th>Próx</th><th>Obs.</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody id="tablaMantenimiento"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-red-500">
+                <h2 class="text-lg font-bold text-gray-700 mb-3">🚨 Registro de Reparaciones / Daños</h2>
+                <form id="formReparacion" onsubmit="guardarReparacion(event)" class="bg-gray-50 p-3 rounded-lg border mb-4 space-y-3 text-xs">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <input type="date" id="rep_fecha" required class="p-2 border rounded">
+                        <input type="number" id="rep_km" placeholder="KM Actual" required class="p-2 border rounded">
+                        <input type="text" id="rep_detalle" placeholder="Detalle" required class="p-2 border rounded">
+                        <input type="number" id="rep_costo" placeholder="Costo Est. ($)" class="p-2 border rounded">
+                        <div class="col-span-2">
+                            <label class="block font-semibold mb-1">Foto del Daño:</label>
+                            <input type="file" id="rep_foto" accept="image/*" class="w-full text-xs">
+                        </div>
+                    </div>
+                    <button type="submit" class="bg-red-600 text-white font-bold py-2 px-4 rounded w-full">Guardar Reparación</button>
+                </form>
+                <div id="listaReparaciones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </section>
+
+            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-purple-600">
+                <h2 class="text-lg font-bold text-gray-700 mb-3">🚌 Agenda y Control de Viajes</h2>
+                <form id="formViaje" onsubmit="guardarViaje(event)" class="bg-purple-50 p-3 rounded-lg border mb-4 space-y-2 text-xs">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <input type="date" id="vj_fecha" required class="p-2 border rounded">
+                        <input type="text" id="vj_chofer" placeholder="Nombre Chofer" required class="p-2 border rounded">
+                        <input type="text" id="vj_destino" placeholder="Destino / Ruta" required class="p-2 border rounded">
+                        <select id="vj_estado" class="p-2 border rounded">
+                            <option value="Pendiente">⏳ Pendiente</option>
+                            <option value="Realizado">✅ Realizado</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="bg-purple-600 text-white font-bold py-2 px-4 rounded w-full">+ Registrar Viaje</button>
+                </form>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-purple-100 border-b">
+                            <tr><th>Fecha</th><th>Chofer</th><th>Destino</th><th>Estado</th><th>Acciones</th></tr>
+                        </thead>
+                        <tbody id="tablaViajes"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyA7bzz1r--DrVexrKk_WKPU46UNgZzCn_0",
+            authDomain: "la-costa-viajes.firebaseapp.com",
+            projectId: "la-costa-viajes",
+            storageBucket: "la-costa-viajes.firebasestorage.app",
+            messagingSenderId: "346505256901",
+            appId: "1:346505256901:web:5e8a2ff61978f0185fb5ac"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let vehiculoActual = 'auto1';
+        let vehiculoData = {};
+        let unsubscribe = null;
+        const itemsChecklist = ['Luces', 'Aceite', 'Agua', 'Refrigerante', 'Líquido de frenos', 'Neumáticos', 'Limpiaparabrisas', 'Batería'];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderChecklist();
+            escucharVehiculo();
+        });
+
+        function cambiarVehiculo() {
+            vehiculoActual = document.getElementById('vehiculoSelect').value;
+            escucharVehiculo();
+        }
+
+        function escucharVehiculo() {
+            if (unsubscribe) unsubscribe();
+            unsubscribe = db.collection("flota").doc(vehiculoActual).onSnapshot((doc) => {
+                vehiculoData = doc.exists ? doc.data() : {
+                    patente: '', marca: '', anio: '', km: '',
+                    venc_seguro: '', venc_vtv: '', venc_rto: '', venc_matafuego: '',
+                    checklist: {}, checklistNotas: '', mantenimientos: [], reparaciones: [], viajes: []
+                };
+                cargarDatosEnPantalla();
+            });
+        }
+
+        function cargarDatosEnPantalla() {
+            document.getElementById('v_patente').value = vehiculoData.patente || '';
+            document.getElementById('v_marca').value = vehiculoData.marca || '';
+            document.getElementById('v_anio').value = vehiculoData.anio || '';
+            document.getElementById('v_km').value = vehiculoData.km || '';
+            document.getElementById('venc_seguro').value = vehiculoData.venc_seguro || '';
+            document.getElementById('venc_vtv').value = vehiculoData.venc_vtv || '';
+            document.getElementById('venc_rto').value = vehiculoData.venc_rto || '';
+            document.getElementById('venc_matafuego').value = vehiculoData.venc_matafuego || '';
+            document.getElementById('checklistNotas').value = vehiculoData.checklistNotas || '';
+
+            itemsChecklist.forEach((item, index) => {
+                const chk = document.getElementById(`chk_${index}`);
+                if (chk) chk.checked = !!(vehiculoData.checklist && vehiculoData.checklist[item]);
+            });
+
+            renderMantenimiento(vehiculoData.mantenimientos || []);
+            renderReparaciones(vehiculoData.reparaciones || []);
+            renderViajes(vehiculoData.viajes || []);
+        }
+
+        function guardarFormulario() {
+            vehiculoData.patente = document.getElementById('v_patente').value;
+            vehiculoData.marca = document.getElementById('v_marca').value;
+            vehiculoData.anio = document.getElementById('v_anio').value;
+            vehiculoData.km = document.getElementById('v_km').value;
+            vehiculoData.venc_seguro = document.getElementById('venc_seguro').value;
+            vehiculoData.venc_vtv = document.getElementById('venc_vtv').value;
+            vehiculoData.venc_rto = document.getElementById('venc_rto').value;
+            vehiculoData.venc_matafuego = document.getElementById('venc_matafuego').value;
+            vehiculoData.checklistNotas = document.getElementById('checklistNotas').value;
+
+            vehiculoData.checklist = {};
+            itemsChecklist.forEach((item, index) => {
+                const chk = document.getElementById(`chk_${index}`);
+                if (chk) vehiculoData.checklist[item] = chk.checked;
+            });
+
+            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+        }
+
+        function renderChecklist() {
+            const container = document.getElementById('checklistContainer');
+            container.innerHTML = itemsChecklist.map((item, index) => `
+                <label class="flex items-center gap-2 cursor-pointer bg-gray-50 p-2 rounded border">
+                    <input type="checkbox" id="chk_${index}" onchange="guardarFormulario()" class="rounded text-blue-600">
+                    <span class="text-xs">${item}</span>
+                </label>
+            `).join('');
+        }
+
+        function guardarMantenimiento(e) {
+            e.preventDefault();
+            if (!vehiculoData.mantenimientos) vehiculoData.mantenimientos = [];
+            vehiculoData.mantenimientos.push({
+                fecha: document.getElementById('service_fecha').value,
+                km: document.getElementById('service_km').value,
+                trabajo: document.getElementById('service_trabajo').value,
+                prox: document.getElementById('service_prox').value,
+                obs: document.getElementById('service_obs').value
+            });
+            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+            document.getElementById('formService').reset();
+            document.getElementById('formService').classList.add('hidden');
+        }
+
+        function eliminarMantenimiento(index) {
+            vehiculoData.mantenimientos.splice(index, 1);
+            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+        }
+
+        function renderMantenimiento(list) {
+            const tbody = document.getElementById('tablaMantenimiento');
+            if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
+            tbody.innerHTML = list.map((item, index) => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-2">${item.fecha}</td><td class="p-2 font-semibold">${item.km}</td>
+                    <td class="p-2">${item.trabajo}</td><td class="p-2 text-blue-600">${item.prox}</td>
+                    <td class="p-2 text-gray-600">${item.obs}</td>
+                    <td class="p-2"><button onclick="eliminarMantenimiento(${index})" class="text-red-500 font-bold">✕</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function guardarReparacion(e) {
+            e.preventDefault();
+            const fecha = document.getElementById('rep_fecha').value;
+            const km = document.getElementById('rep_km').value;
+            const detalle = document.getElementById('rep_detalle').value;
+            const costo = document.getElementById('rep_costo').value;
+            const fotoInput = document.getElementById('rep_foto');
+
+            const enviar = (foto) => {
+                if (!vehiculoData.reparaciones) vehiculoData.reparaciones = [];
+                vehiculoData.reparaciones.push({ fecha, km, detalle, costo, foto });
+                db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+                document.getElementById('formReparacion').reset();
+            };
+
+            if (fotoInput.files && fotoInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (evt) => enviar(evt.target.result);
+                reader.readAsDataURL(fotoInput.files[0]);
+            } else {
+                enviar(null);
+            }
+        }
+
+        function eliminarReparacion(index) {
+            vehiculoData.reparaciones.splice(index, 1);
+            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+        }
+
+        function renderReparaciones(list) {
+            const container = document.getElementById('listaReparaciones');
+            if(!list.length) { container.innerHTML = '<p class="text-xs text-gray-400 col-span-2">Sin registros.</p>'; return; }
+            container.innerHTML = list.map((item, index) => `
+                <div class="border rounded-lg p-3 bg-red-50/30 text-xs relative flex flex-col justify-between">
+                    <button onclick="eliminarReparacion(${index})" class="absolute top-2 right-2 text-red-600 font-bold">✕</button>
+                    <div>
+                        <div class="font-bold text-gray-800">${item.detalle}</div>
+                        <div class="text-gray-500">📅 ${item.fecha} | 🛠️ ${item.km} KM</div>
+                        ${item.costo ? `<div class="text-green-700 font-bold mt-1">Costo: $${item.costo}</div>` : ''}
+                    </div>
+                    ${item.foto ? `<img src="${item.foto}" class="mt-2 rounded h-32 w-full object-cover border" />` : ''}
+                </div>
+            `).join('');
+        }
+
+        function guardarViaje(e) {
+            e.preventDefault();
+            if (!vehiculoData.viajes) vehiculoData.viajes = [];
+            vehiculoData.viajes.push({
+                fecha: document.getElementById('vj_fecha').value,
+                chofer: document.getElementById('vj_chofer').value,
+                destino: document.getElementById('vj_destino').value,
+                estado: document.getElementById('vj_estado').value
+            });
+            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+            document.getElementById('formViaje').reset();
+        }
+
+        function cambiarEstadoViaje(index) {
+            vehiculoData.viajes[index].estado = vehiculoData.viajes[index].estado === 'Pendiente' ? 'Realizado' : 'Pendiente';
+            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+        }
+
+        function eliminarViaje(index) {
+            vehiculoData.viajes.splice(index, 1);
+            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+        }
+
+        function renderViajes(list) {
+            const tbody = document.getElementById('tablaViajes');
+            if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
+            tbody.innerHTML = list.map((item, index) => `
+                <tr class="border-b">
+                    <td class="p-2 font-semibold">${item.fecha}</td><td class="p-2">${item.chofer}</td>
+                    <td class="p-2">${item.destino}</td>
+                    <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${item.estado}</span></td>
+                    <td class="p-2 flex gap-2">
+                        <button onclick="cambiarEstadoViaje(${index})" class="text-blue-600 font-semibold">Cambiar Estado</button>
+                        <button onclick="eliminarViaje(${index})" class="text-red-500 font-bold">✕</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{
+  "auto1": {
+    "patente": "AG00GDV",
+    "marca": "Toyota Etios",
+    "anio": "2022",
+    "km": "45000",
+    "venc_seguro": "2026-12-31",
+    "venc_vtv": "2026-10-15",
+    "venc_rto": "2026-10-15",
+    "venc_matafuego": "2027-01-01",
+    "checklist": { "Luces": true, "Aceite": true },
+    "checklistNotas": "Sin novedad",
+    "mantenimientos": [],
+    "reparaciones": [],
+    "viajes": []
+  },
+  "auto2": {
+    "patente": "AG874IM",
+    "marca": "Fiat Cronos",
+    "anio": "2023",
+    "km": "32000",
+    "venc_seguro": "", "venc_vtv": "", "venc_rto": "", "venc_matafuego": "",
+    "checklist": {}, "checklistNotas": "",
+    "mantenimientos": [], "reparaciones": [], "viajes": []
+  },
+  "camioneta1": {
+    "patente": "AH507WL",
+    "marca": "Iveco Daily",
+    "anio": "2023",
+    "km": "60000",
+    "venc_seguro": "", "venc_vtv": "", "venc_rto": "", "venc_matafuego": "",
+    "checklist": {}, "checklistNotas": "",
+    "mantenimientos": [], "reparaciones": [], "viajes": []
+  },
+  "camioneta2": {
+    "patente": "AG126BE",
+    "marca": "Iveco Daily",
+    "anio": "2023",
+    "km": "80175",
+    "venc_seguro": "", "venc_vtv": "", "venc_rto": "", "venc_matafuego": "",
+    "checklist": {}, "checklistNotas": "",
+    "mantenimientos": [], "reparaciones": [], "viajes": []
+  }
+}
