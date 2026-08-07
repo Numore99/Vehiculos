@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ADMINISTRACIÓN - Control de Flota</title>
+
+    <!-- Favicon y Metadatos de Compartición -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
+    <meta property="og:title" content="La Costa Viajes - Control de Flota">
+    <meta property="og:description" content="Sistema de gestión y seguimiento en tiempo real para vehículos y choferes.">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80">
+    <meta property="og:type" content="website">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -109,7 +117,6 @@
                 <div id="listaReparaciones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </section>
 
-            <!-- Tabla de Resumen por Chofer / Mes -->
             <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-indigo-600">
                 <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📊 Total de Viajes por Chofer (Mensual)</h2>
                 <div class="overflow-x-auto">
@@ -127,7 +134,6 @@
                 </div>
             </section>
 
-            <!-- Agenda y Registro de Viajes -->
             <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-purple-600">
                 <h2 class="text-lg font-bold text-gray-700 mb-3">🚌 Agenda y Control de Viajes</h2>
                 <form id="formViaje" onsubmit="guardarViaje(event)" class="bg-purple-50 p-3 rounded-lg border mb-4 space-y-2 text-xs">
