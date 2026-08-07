@@ -169,6 +169,27 @@
 
         </div>
 
+        <!-- PANEL: Total de Viajes por Chofer (Mensual) Accordion Móvil -->
+        <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-700 flex items-center gap-2">📊 Total de Viajes por Chofer (Mensual)</h2>
+                    <p class="text-xs text-gray-500">Selecciona el mes para consultar la actividad desplegable por chofer.</p>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-100 p-2 rounded-lg border border-slate-200">
+                    <label for="mesChoferSelect" class="text-xs font-bold text-slate-700">🗓️ Almanaque:</label>
+                    <select id="mesChoferSelect" onchange="renderChoferesMensual()" class="bg-white text-slate-900 font-bold text-xs py-1 px-2.5 rounded shadow-xs border border-slate-300 outline-none cursor-pointer">
+                        <!-- Generado dinámicamente -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Contenedor Acordeón de Choferes -->
+            <div id="gridChoferesMensual" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <!-- Tarjetas dinámicas -->
+            </div>
+        </section>
+
         <!-- Resumen General por Vehículo -->
         <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
             <h2 class="text-lg font-bold text-gray-700 mb-1 flex items-center gap-2">📊 Resumen General de Viajes por Vehículo</h2>
@@ -205,13 +226,30 @@
         const itemsChecklist = ['Luces', 'Aceite', 'Agua', 'Refrigerante', 'Líquido de frenos', 'Neumáticos', 'Limpiaparabrisas', 'Batería'];
 
         document.addEventListener('DOMContentLoaded', () => {
+            inicializarSelectorMeses();
             escucharFlota();
         });
 
+        function inicializarSelectorMeses() {
+            const select = document.getElementById('mesChoferSelect');
+            if (!select || select.children.length > 0) return;
+
+            const fechaActual = new Date();
+            
+            for (let i = 0; i < 12; i++) {
+                const d = new Date(fechaActual.getFullYear(), fechaActual.getMonth() + i, 1);
+                const mesVal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const nombreMes = d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+                
+                const option = document.createElement('option');
+                option.value = mesVal;
+                option.textContent = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+                select.appendChild(option);
+            }
+        }
+
         function cambiarVehiculo(notificar = false) {
             vehiculoActual = document.getElementById('vehiculoSelect').value;
-            
-            // Actualizamos la vista superior y re-renderizamos el panel inferior
             renderVistaVehiculo();
             renderResumenGlobalFlota();
 
@@ -219,7 +257,6 @@
                 const data = todosLosVehiculos[vehiculoActual] || {};
                 const nombre = data.patente ? `${data.patente.toUpperCase()} (${data.marca || ''})` : vehiculoActual.toUpperCase();
                 
-                // Efecto de iluminación en el panel superior
                 const card = document.getElementById('cardVehiculo');
                 card.classList.add('ring-4', 'ring-blue-500', 'scale-[1.02]');
                 setTimeout(() => {
@@ -233,8 +270,6 @@
         function verDetalleVehiculo(id) {
             document.getElementById('vehiculoSelect').value = id;
             cambiarVehiculo(true);
-
-            // Scroll suave hacia la parte superior
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -247,6 +282,7 @@
 
                 renderVistaVehiculo();
                 renderResumenGlobalFlota();
+                renderChoferesMensual();
             });
         }
 
@@ -265,12 +301,10 @@
         function renderVistaVehiculo() {
             const data = todosLosVehiculos[vehiculoActual] || {};
             
-            // Ficha Patente y Modelo
             document.getElementById('lbl_patente').innerText = data.patente ? data.patente.toUpperCase() : 'NO CARGADO';
             document.getElementById('lbl_modelo').innerText = data.marca || 'Vehículo sin especificar';
             document.getElementById('lbl_km').innerText = `${data.km ? Number(data.km).toLocaleString('es-AR') : '0'} KM`;
 
-            // Finanzas y Gastos
             const totComb = (data.combustible || []).reduce((sum, item) => sum + (Number(item.costo) || 0), 0);
             const totRep = (data.reparaciones || []).reduce((sum, item) => sum + (Number(item.costo) || 0), 0);
             const totGen = totComb + totRep;
@@ -279,7 +313,6 @@
             document.getElementById('costoTotalReparaciones').innerText = `$${totRep.toLocaleString('es-AR')}`;
             document.getElementById('costoTotalGeneral').innerText = `$${totGen.toLocaleString('es-AR')}`;
 
-            // Vencimientos
             const vencimientos = [
                 { label: '🛡️ Seguro', val: data.venc_seguro },
                 { label: '🔍 VTV', val: data.venc_vtv },
@@ -297,7 +330,6 @@
                 `;
             }).join('');
 
-            // Checklist
             const checklistData = data.checklist || {};
             document.getElementById('checklistContainer').innerHTML = itemsChecklist.map(item => {
                 const checked = !!checklistData[item];
@@ -309,7 +341,6 @@
                 `;
             }).join('');
 
-            // Combustible Tabla
             const combList = data.combustible || [];
             const tbodyComb = document.getElementById('tablaCombustible');
             if (!combList.length) {
@@ -325,7 +356,6 @@
                 `).join('');
             }
 
-            // Mantenimiento Tabla
             const mantList = data.mantenimientos || [];
             const tbodyMant = document.getElementById('tablaMantenimiento');
             if (!mantList.length) {
@@ -341,7 +371,6 @@
                 `).join('');
             }
 
-            // Viajes del Vehículo
             const viajesList = data.viajes || [];
             document.getElementById('totalViajesBadge').innerText = `${viajesList.length} viajes registrados`;
             const tbodyViajes = document.getElementById('tablaViajesVehiculo');
@@ -360,6 +389,110 @@
                         </td>
                     </tr>
                 `).join('');
+            }
+        }
+
+        function renderChoferesMensual() {
+            const selectMes = document.getElementById('mesChoferSelect');
+            if (!selectMes) return;
+            const mesSeleccionado = selectMes.value;
+
+            const nombresFlota = {
+                'auto1': 'ETIOS AG00GDV',
+                'auto2': 'CRONOS AG874IM',
+                'camioneta1': 'IVECO AH507WL',
+                'camioneta2': 'IVECO AG126BE'
+            };
+
+            let viajesDelMes = [];
+
+            for (const vId in todosLosVehiculos) {
+                const vData = todosLosVehiculos[vId] || {};
+                const patenteVehiculo = vData.patente ? vData.patente.toUpperCase() : (nombresFlota[vId] || vId);
+                const marcaVehiculo = vData.marca || '';
+                const nombreVehiculo = `${marcaVehiculo} ${patenteVehiculo}`.trim();
+
+                const viajes = vData.viajes || [];
+                viajes.forEach(v => {
+                    if (v.fecha && v.fecha.startsWith(mesSeleccionado)) {
+                        viajesDelMes.push({
+                            ...v,
+                            vehiculoNombre: nombreVehiculo
+                        });
+                    }
+                });
+            }
+
+            const choferesMap = {};
+            viajesDelMes.forEach(v => {
+                const chofer = v.chofer ? v.chofer.trim() : 'Sin Chofer';
+                if (!choferesMap[chofer]) choferesMap[chofer] = [];
+                choferesMap[chofer].push(v);
+            });
+
+            const grid = document.getElementById('gridChoferesMensual');
+            if (Object.keys(choferesMap).length === 0) {
+                grid.innerHTML = `<div class="col-span-full p-4 text-center text-gray-400 text-xs bg-slate-50 rounded-xl border border-dashed border-gray-200">Sin viajes registrados para el mes seleccionado.</div>`;
+                return;
+            }
+
+            let html = '';
+            let index = 0;
+            for (const chofer in choferesMap) {
+                const listaViajes = choferesMap[chofer];
+                const cardId = `chofer_card_${index++}`;
+
+                html += `
+                    <div class="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden transition-all duration-200 hover:border-blue-300">
+                        <div onclick="toggleDetalleChofer('${cardId}')" class="p-3 bg-slate-50 hover:bg-slate-100 cursor-pointer flex justify-between items-center select-none">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm">👤</span>
+                                <span class="font-bold text-slate-800 text-xs">${chofer}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${listaViajes.length} ${listaViajes.length === 1 ? 'viaje' : 'viajes'}</span>
+                                <span id="arrow_${cardId}" class="text-gray-400 text-[10px] transition-transform duration-200">▼</span>
+                            </div>
+                        </div>
+
+                        <div id="${cardId}" class="chofer-detalle hidden p-3 border-t border-slate-100 bg-white space-y-2 text-xs">
+                            ${listaViajes.map(v => `
+                                <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 flex flex-col gap-1">
+                                    <div class="flex justify-between items-center font-bold text-slate-700">
+                                        <span>📅 ${v.fecha}</span>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] ${v.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${v.estado || 'Pendiente'}</span>
+                                    </div>
+                                    <div class="text-[11px] text-blue-700 font-semibold">🚘 ${v.vehiculoNombre}</div>
+                                    <div class="text-[11px] text-gray-500">📍 ${v.destino || 'Sin destino'}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            grid.innerHTML = html;
+        }
+
+        /* ACORDEÓN MÓVIL: Cierra las demás tarjetas para evitar cajas vacías */
+        function toggleDetalleChofer(id) {
+            const containerActual = document.getElementById(id);
+            const arrowActual = document.getElementById(`arrow_${id}`);
+            const estaAbierta = containerActual && !containerActual.classList.contains('hidden');
+
+            // 1. Cerrar todas las tarjetas de choferes existentes
+            document.querySelectorAll('.chofer-detalle').forEach(el => {
+                el.classList.add('hidden');
+            });
+
+            // Restablecer todas las flechas
+            document.querySelectorAll('[id^="arrow_chofer_card_"]').forEach(ar => {
+                ar.style.transform = 'rotate(0deg)';
+            });
+
+            // 2. Si la tarjeta clickeada no estaba abierta, la desplegamos
+            if (!estaAbierta && containerActual) {
+                containerActual.classList.remove('hidden');
+                if (arrowActual) arrowActual.style.transform = 'rotate(180deg)';
             }
         }
 
