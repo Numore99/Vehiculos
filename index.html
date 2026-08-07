@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>La Costa Viajes - Control de Flota (Público)</title>
     
-    <!-- Favicon y Metadatos de Compartición -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
     <meta property="og:title" content="La Costa Viajes - Control de Flota">
     <meta property="og:description" content="Sistema de gestión y seguimiento en tiempo real para vehículos y choferes.">
@@ -13,7 +12,6 @@
     <meta property="og:type" content="website">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
@@ -41,84 +39,114 @@
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="space-y-6">
-            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-blue-600">
-                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📄 Datos del Vehículo</h2>
-                <div class="grid grid-cols-2 gap-3 text-sm">
-                    <div><label class="block text-xs font-semibold text-gray-500">PATENTE</label><input type="text" id="v_patente" readonly class="w-full border p-1 rounded font-bold uppercase bg-gray-50"></div>
-                    <div><label class="block text-xs font-semibold text-gray-500">MARCA / MODELO</label><input type="text" id="v_marca" readonly class="w-full border p-1 rounded bg-gray-50"></div>
-                    <div><label class="block text-xs font-semibold text-gray-500">AÑO</label><input type="text" id="v_anio" readonly class="w-full border p-1 rounded bg-gray-50"></div>
-                    <div><label class="block text-xs font-semibold text-gray-500">KM ACTUAL</label><input type="number" id="v_km" readonly class="w-full border p-1 rounded font-bold text-blue-600 bg-gray-50"></div>
+    <main class="max-w-7xl mx-auto px-4 space-y-6">
+        <!-- Dashboard / KPIs -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-600 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase">Flota Total</p>
+                    <p class="text-2xl font-black text-gray-800" id="kpi_total">4 Vehículos</p>
                 </div>
-            </section>
-
-            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-yellow-500">
-                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📅 Vencimientos Importantes</h2>
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between items-center"><span>🛡️ Seguro:</span><input type="date" id="venc_seguro" disabled class="border p-1 rounded text-xs bg-gray-50"></div>
-                    <div class="flex justify-between items-center"><span>🔍 VTV:</span><input type="date" id="venc_vtv" disabled class="border p-1 rounded text-xs bg-gray-50"></div>
-                    <div class="flex justify-between items-center"><span>⚙️ RTO:</span><input type="date" id="venc_rto" disabled class="border p-1 rounded text-xs bg-gray-50"></div>
-                    <div class="flex justify-between items-center"><span>🧯 Matafuego:</span><input type="date" id="venc_matafuego" disabled class="border p-1 rounded text-xs bg-gray-50"></div>
+                <span class="text-3xl">🚐</span>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-yellow-500 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase">Viajes Pendientes</p>
+                    <p class="text-2xl font-black text-yellow-600" id="kpi_pendientes">0</p>
                 </div>
-            </section>
-
-            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-green-500">
-                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📋 Control Chequeo Rápido</h2>
-                <div id="checklistContainer" class="grid grid-cols-2 gap-2 text-sm"></div>
-                <div class="mt-4">
-                    <label class="block text-xs font-semibold text-gray-500 mb-1">NOTAS / OBSERVACIONES</label>
-                    <textarea id="checklistNotas" readonly rows="4" class="w-full border p-2 rounded resize-none text-sm bg-gray-50"></textarea>
+                <span class="text-3xl">⏳</span>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-500 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase">Alertas / Vencimientos</p>
+                    <p class="text-2xl font-black text-red-600" id="kpi_alertas">0</p>
                 </div>
-            </section>
+                <span class="text-3xl">⚠️</span>
+            </div>
         </div>
 
-        <div class="md:col-span-2 space-y-6">
-            <section class="bg-white p-5 rounded-xl shadow-md">
-                <h2 class="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">🔧 Mantenimientos Realizados</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-gray-100 border-b">
-                            <tr><th class="p-2">Fecha</th><th class="p-2">KM</th><th class="p-2">Trabajo Realizado</th><th class="p-2">Próx. Service</th><th class="p-2">Obs.</th></tr>
-                        </thead>
-                        <tbody id="tablaMantenimiento"></tbody>
-                    </table>
-                </div>
-            </section>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="space-y-6">
+                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-blue-600">
+                    <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📄 Datos del Vehículo</h2>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><label class="block text-xs font-semibold text-gray-500">PATENTE</label><input type="text" id="v_patente" readonly class="w-full border p-1 rounded font-bold uppercase bg-gray-50"></div>
+                        <div><label class="block text-xs font-semibold text-gray-500">MARCA / MODELO</label><input type="text" id="v_marca" readonly class="w-full border p-1 rounded bg-gray-50"></div>
+                        <div><label class="block text-xs font-semibold text-gray-500">AÑO</label><input type="text" id="v_anio" readonly class="w-full border p-1 rounded bg-gray-50"></div>
+                        <div><label class="block text-xs font-semibold text-gray-500">KM ACTUAL</label><input type="number" id="v_km" readonly class="w-full border p-1 rounded font-bold text-blue-600 bg-gray-50"></div>
+                    </div>
+                </section>
 
-            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-red-500">
-                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">🚨 Registro de Reparaciones / Daños</h2>
-                <div id="listaReparaciones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-            </section>
+                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-yellow-500">
+                    <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📅 Vencimientos Importantes</h2>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between items-center"><span>🛡️ Seguro:</span><input type="date" id="venc_seguro" disabled class="border p-1 rounded text-xs"></div>
+                        <div class="flex justify-between items-center"><span>🔍 VTV:</span><input type="date" id="venc_vtv" disabled class="border p-1 rounded text-xs"></div>
+                        <div class="flex justify-between items-center"><span>⚙️ RTO:</span><input type="date" id="venc_rto" disabled class="border p-1 rounded text-xs"></div>
+                        <div class="flex justify-between items-center"><span>🧯 Matafuego:</span><input type="date" id="venc_matafuego" disabled class="border p-1 rounded text-xs"></div>
+                    </div>
+                </section>
 
-            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-indigo-600">
-                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📊 Total de Viajes por Chofer (Mensual)</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-indigo-100 border-b">
-                            <tr>
-                                <th class="p-2">Mes</th>
-                                <th class="p-2">Chofer</th>
-                                <th class="p-2">Total Viajes</th>
-                                <th class="p-2">Detalles (Días y Auto)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaResumenChoferes"></tbody>
-                    </table>
-                </div>
-            </section>
+                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-green-500">
+                    <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📋 Control Chequeo Rápido</h2>
+                    <div id="checklistContainer" class="grid grid-cols-2 gap-2 text-sm"></div>
+                    <div class="mt-4">
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">NOTAS / OBSERVACIONES</label>
+                        <textarea id="checklistNotas" readonly rows="4" class="w-full border p-2 rounded resize-none text-sm bg-gray-50"></textarea>
+                    </div>
+                </section>
+            </div>
 
-            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-purple-600">
-                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">🚌 Agenda e Historial Completo de Viajes</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-purple-100 border-b">
-                            <tr><th class="p-2">Fecha</th><th class="p-2">Vehículo</th><th class="p-2">Chofer</th><th class="p-2">Destino</th><th class="p-2">Estado</th></tr>
-                        </thead>
-                        <tbody id="tablaViajes"></tbody>
-                    </table>
-                </div>
-            </section>
+            <div class="md:col-span-2 space-y-6">
+                <section class="bg-white p-5 rounded-xl shadow-md">
+                    <h2 class="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">🔧 Mantenimientos Realizados</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-gray-100 border-b">
+                                <tr><th class="p-2">Fecha</th><th class="p-2">KM</th><th class="p-2">Trabajo Realizado</th><th class="p-2">Próx. Service</th><th class="p-2">Obs.</th></tr>
+                            </thead>
+                            <tbody id="tablaMantenimiento"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-red-500">
+                    <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">🚨 Registro de Reparaciones / Daños</h2>
+                    <div id="listaReparaciones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </section>
+
+                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-indigo-600">
+                    <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📊 Total de Viajes por Chofer (Mensual)</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-indigo-100 border-b">
+                                <tr>
+                                    <th class="p-2">Mes</th>
+                                    <th class="p-2">Chofer</th>
+                                    <th class="p-2">Total Viajes</th>
+                                    <th class="p-2">Detalles (Días y Auto)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaResumenChoferes"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-purple-600">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
+                        <h2 class="text-lg font-bold text-gray-700 flex items-center gap-2">🚌 Agenda e Historial Completo de Viajes</h2>
+                        <input type="text" id="buscarViaje" onkeyup="filtrarViajes()" placeholder="🔍 Buscar destino o chofer..." class="border p-1.5 rounded text-xs w-full sm:w-64 outline-none focus:ring-2 focus:ring-purple-400">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-purple-100 border-b">
+                                <tr><th class="p-2">Fecha</th><th class="p-2">Vehículo</th><th class="p-2">Chofer</th><th class="p-2">Destino</th><th class="p-2">Estado</th></tr>
+                            </thead>
+                            <tbody id="tablaViajes"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
         </div>
     </main>
 
@@ -136,6 +164,7 @@
 
         let vehiculoActual = 'auto1';
         let todosLosVehiculos = {};
+        let listaGlobalViajes = [];
         const itemsChecklist = ['Luces', 'Aceite', 'Agua', 'Refrigerante', 'Líquido de frenos', 'Neumáticos', 'Limpiaparabrisas', 'Batería'];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -151,15 +180,21 @@
         function escucharFlota() {
             db.collection("flota").onSnapshot((snapshot) => {
                 todosLosVehiculos = {};
-                let todosLosViajes = [];
+                listaGlobalViajes = [];
+                let totalAlertas = 0;
 
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     todosLosVehiculos[doc.id] = data;
 
+                    // Conteo de alertas
+                    ['venc_seguro', 'venc_vtv', 'venc_rto', 'venc_matafuego'].forEach(f => {
+                        if (evaluarSemaforo(data[f]) !== 'ok') totalAlertas++;
+                    });
+
                     if (data.viajes && Array.isArray(data.viajes)) {
                         data.viajes.forEach(v => {
-                            todosLosViajes.push({
+                            listaGlobalViajes.push({
                                 ...v,
                                 vehiculoId: doc.id
                             });
@@ -167,12 +202,37 @@
                     }
                 });
 
-                todosLosViajes.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                listaGlobalViajes.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+                document.getElementById('kpi_pendientes').innerText = listaGlobalViajes.filter(v => v.estado === 'Pendiente').length;
+                document.getElementById('kpi_alertas').innerText = totalAlertas;
 
                 renderVehiculoSeleccionado();
-                renderViajes(todosLosViajes);
-                renderResumenChoferes(todosLosViajes);
+                renderViajes(listaGlobalViajes);
+                renderResumenChoferes(listaGlobalViajes);
             });
+        }
+
+        function evaluarSemaforo(fechaStr) {
+            if (!fechaStr) return 'ok';
+            const hoy = new Date();
+            hoy.setHours(0,0,0,0);
+            const fecha = new Date(fechaStr + 'T00:00:00');
+            const difDias = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
+
+            if (difDias < 0) return 'vencido';
+            if (difDias <= 15) return 'por_vencer';
+            return 'ok';
+        }
+
+        function aplicarSemaforo(elemId, fechaStr) {
+            const elem = document.getElementById(elemId);
+            if (!elem) return;
+            const estado = evaluarSemaforo(fechaStr);
+            elem.className = "border p-1 rounded text-xs font-bold ";
+            if (estado === 'vencido') elem.className += "bg-red-100 text-red-800 border-red-400";
+            else if (estado === 'por_vencer') elem.className += "bg-yellow-100 text-yellow-800 border-yellow-400";
+            else elem.className += "bg-green-100 text-green-800 border-green-300";
         }
 
         function renderVehiculoSeleccionado() {
@@ -181,10 +241,17 @@
             document.getElementById('v_marca').value = data.marca || '';
             document.getElementById('v_anio').value = data.anio || '';
             document.getElementById('v_km').value = data.km || '';
+
             document.getElementById('venc_seguro').value = data.venc_seguro || '';
             document.getElementById('venc_vtv').value = data.venc_vtv || '';
             document.getElementById('venc_rto').value = data.venc_rto || '';
             document.getElementById('venc_matafuego').value = data.venc_matafuego || '';
+
+            aplicarSemaforo('venc_seguro', data.venc_seguro);
+            aplicarSemaforo('venc_vtv', data.venc_vtv);
+            aplicarSemaforo('venc_rto', data.venc_rto);
+            aplicarSemaforo('venc_matafuego', data.venc_matafuego);
+
             document.getElementById('checklistNotas').value = data.checklistNotas || '';
 
             itemsChecklist.forEach((item, index) => {
@@ -233,7 +300,7 @@
             const tbody = document.getElementById('tablaViajes');
             if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
             tbody.innerHTML = list.map(item => `
-                <tr class="border-b">
+                <tr class="border-b hover:bg-gray-50">
                     <td class="p-2 font-semibold">${item.fecha}</td>
                     <td class="p-2 font-bold text-blue-800">${item.vehiculoNombre || 'Auto'}</td>
                     <td class="p-2 font-semibold text-gray-800">${item.chofer}</td>
@@ -241,6 +308,16 @@
                     <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${item.estado}</span></td>
                 </tr>
             `).join('');
+        }
+
+        function filtrarViajes() {
+            const q = document.getElementById('buscarViaje').value.toLowerCase();
+            const filtrados = listaGlobalViajes.filter(v => 
+                (v.chofer && v.chofer.toLowerCase().includes(q)) || 
+                (v.destino && v.destino.toLowerCase().includes(q)) ||
+                (v.vehiculoNombre && v.vehiculoNombre.toLowerCase().includes(q))
+            );
+            renderViajes(filtrados);
         }
 
         function renderResumenChoferes(todosLosViajes) {
