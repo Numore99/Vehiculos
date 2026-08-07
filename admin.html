@@ -109,11 +109,36 @@
                 <div id="listaReparaciones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </section>
 
+            <!-- Tabla de Resumen por Chofer / Mes -->
+            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-indigo-600">
+                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📊 Total de Viajes por Chofer (Mensual)</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-indigo-100 border-b">
+                            <tr>
+                                <th class="p-2">Mes</th>
+                                <th class="p-2">Chofer</th>
+                                <th class="p-2">Total Viajes</th>
+                                <th class="p-2">Detalles (Días y Auto)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaResumenChoferes"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Agenda y Registro de Viajes -->
             <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-purple-600">
                 <h2 class="text-lg font-bold text-gray-700 mb-3">🚌 Agenda y Control de Viajes</h2>
                 <form id="formViaje" onsubmit="guardarViaje(event)" class="bg-purple-50 p-3 rounded-lg border mb-4 space-y-2 text-xs">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
                         <input type="date" id="vj_fecha" required class="p-2 border rounded">
+                        <select id="vj_vehiculo" class="p-2 border rounded font-semibold text-gray-700">
+                            <option value="auto1">ETIOS AG00GDV</option>
+                            <option value="auto2">CRONOS AG874IM</option>
+                            <option value="camioneta1">IVECO AH507WL</option>
+                            <option value="camioneta2">IVECO AG126BE</option>
+                        </select>
                         <input type="text" id="vj_chofer" placeholder="Nombre Chofer" required class="p-2 border rounded">
                         <input type="text" id="vj_destino" placeholder="Destino / Ruta" required class="p-2 border rounded">
                         <select id="vj_estado" class="p-2 border rounded">
@@ -126,7 +151,7 @@
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-purple-100 border-b">
-                            <tr><th>Fecha</th><th>Chofer</th><th>Destino</th><th>Estado</th><th>Acciones</th></tr>
+                            <tr><th>Fecha</th><th>Vehículo</th><th>Chofer</th><th>Destino</th><th>Estado</th><th>Acciones</th></tr>
                         </thead>
                         <tbody id="tablaViajes"></tbody>
                     </table>
@@ -148,71 +173,88 @@
         const db = firebase.firestore();
 
         let vehiculoActual = 'auto1';
-        let vehiculoData = {};
-        let unsubscribe = null;
+        let todosLosVehiculos = {};
         const itemsChecklist = ['Luces', 'Aceite', 'Agua', 'Refrigerante', 'Líquido de frenos', 'Neumáticos', 'Limpiaparabrisas', 'Batería'];
 
         document.addEventListener('DOMContentLoaded', () => {
             renderChecklist();
-            escucharVehiculo();
+            escucharFlota();
         });
 
         function cambiarVehiculo() {
             vehiculoActual = document.getElementById('vehiculoSelect').value;
-            escucharVehiculo();
+            document.getElementById('vj_vehiculo').value = vehiculoActual;
+            renderVehiculoSeleccionado();
         }
 
-        function escucharVehiculo() {
-            if (unsubscribe) unsubscribe();
-            unsubscribe = db.collection("flota").doc(vehiculoActual).onSnapshot((doc) => {
-                vehiculoData = doc.exists ? doc.data() : {
-                    patente: '', marca: '', anio: '', km: '',
-                    venc_seguro: '', venc_vtv: '', venc_rto: '', venc_matafuego: '',
-                    checklist: {}, checklistNotas: '', mantenimientos: [], reparaciones: [], viajes: []
-                };
-                cargarDatosEnPantalla();
+        function escucharFlota() {
+            db.collection("flota").onSnapshot((snapshot) => {
+                todosLosVehiculos = {};
+                let todosLosViajes = [];
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    todosLosVehiculos[doc.id] = data;
+
+                    if (data.viajes && Array.isArray(data.viajes)) {
+                        data.viajes.forEach((v, idx) => {
+                            todosLosViajes.push({
+                                ...v,
+                                vehiculoId: doc.id,
+                                originalIndex: idx
+                            });
+                        });
+                    }
+                });
+
+                todosLosViajes.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+                renderVehiculoSeleccionado();
+                renderViajes(todosLosViajes);
+                renderResumenChoferes(todosLosViajes);
             });
         }
 
-        function cargarDatosEnPantalla() {
-            document.getElementById('v_patente').value = vehiculoData.patente || '';
-            document.getElementById('v_marca').value = vehiculoData.marca || '';
-            document.getElementById('v_anio').value = vehiculoData.anio || '';
-            document.getElementById('v_km').value = vehiculoData.km || '';
-            document.getElementById('venc_seguro').value = vehiculoData.venc_seguro || '';
-            document.getElementById('venc_vtv').value = vehiculoData.venc_vtv || '';
-            document.getElementById('venc_rto').value = vehiculoData.venc_rto || '';
-            document.getElementById('venc_matafuego').value = vehiculoData.venc_matafuego || '';
-            document.getElementById('checklistNotas').value = vehiculoData.checklistNotas || '';
+        function renderVehiculoSeleccionado() {
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            document.getElementById('v_patente').value = data.patente || '';
+            document.getElementById('v_marca').value = data.marca || '';
+            document.getElementById('v_anio').value = data.anio || '';
+            document.getElementById('v_km').value = data.km || '';
+            document.getElementById('venc_seguro').value = data.venc_seguro || '';
+            document.getElementById('venc_vtv').value = data.venc_vtv || '';
+            document.getElementById('venc_rto').value = data.venc_rto || '';
+            document.getElementById('venc_matafuego').value = data.venc_matafuego || '';
+            document.getElementById('checklistNotas').value = data.checklistNotas || '';
 
             itemsChecklist.forEach((item, index) => {
                 const chk = document.getElementById(`chk_${index}`);
-                if (chk) chk.checked = !!(vehiculoData.checklist && vehiculoData.checklist[item]);
+                if (chk) chk.checked = !!(data.checklist && data.checklist[item]);
             });
 
-            renderMantenimiento(vehiculoData.mantenimientos || []);
-            renderReparaciones(vehiculoData.reparaciones || []);
-            renderViajes(vehiculoData.viajes || []);
+            renderMantenimiento(data.mantenimientos || []);
+            renderReparaciones(data.reparaciones || []);
         }
 
         function guardarFormulario() {
-            vehiculoData.patente = document.getElementById('v_patente').value;
-            vehiculoData.marca = document.getElementById('v_marca').value;
-            vehiculoData.anio = document.getElementById('v_anio').value;
-            vehiculoData.km = document.getElementById('v_km').value;
-            vehiculoData.venc_seguro = document.getElementById('venc_seguro').value;
-            vehiculoData.venc_vtv = document.getElementById('venc_vtv').value;
-            vehiculoData.venc_rto = document.getElementById('venc_rto').value;
-            vehiculoData.venc_matafuego = document.getElementById('venc_matafuego').value;
-            vehiculoData.checklistNotas = document.getElementById('checklistNotas').value;
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            data.patente = document.getElementById('v_patente').value;
+            data.marca = document.getElementById('v_marca').value;
+            data.anio = document.getElementById('v_anio').value;
+            data.km = document.getElementById('v_km').value;
+            data.venc_seguro = document.getElementById('venc_seguro').value;
+            data.venc_vtv = document.getElementById('venc_vtv').value;
+            data.venc_rto = document.getElementById('venc_rto').value;
+            data.venc_matafuego = document.getElementById('venc_matafuego').value;
+            data.checklistNotas = document.getElementById('checklistNotas').value;
 
-            vehiculoData.checklist = {};
+            data.checklist = {};
             itemsChecklist.forEach((item, index) => {
                 const chk = document.getElementById(`chk_${index}`);
-                if (chk) vehiculoData.checklist[item] = chk.checked;
+                if (chk) data.checklist[item] = chk.checked;
             });
 
-            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+            db.collection("flota").doc(vehiculoActual).set(data, { merge: true });
         }
 
         function renderChecklist() {
@@ -227,22 +269,24 @@
 
         function guardarMantenimiento(e) {
             e.preventDefault();
-            if (!vehiculoData.mantenimientos) vehiculoData.mantenimientos = [];
-            vehiculoData.mantenimientos.push({
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            if (!data.mantenimientos) data.mantenimientos = [];
+            data.mantenimientos.push({
                 fecha: document.getElementById('service_fecha').value,
                 km: document.getElementById('service_km').value,
                 trabajo: document.getElementById('service_trabajo').value,
                 prox: document.getElementById('service_prox').value,
                 obs: document.getElementById('service_obs').value
             });
-            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+            db.collection("flota").doc(vehiculoActual).set(data, { merge: true });
             document.getElementById('formService').reset();
             document.getElementById('formService').classList.add('hidden');
         }
 
         function eliminarMantenimiento(index) {
-            vehiculoData.mantenimientos.splice(index, 1);
-            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            data.mantenimientos.splice(index, 1);
+            db.collection("flota").doc(vehiculoActual).set(data, { merge: true });
         }
 
         function renderMantenimiento(list) {
@@ -267,9 +311,10 @@
             const fotoInput = document.getElementById('rep_foto');
 
             const enviar = (foto) => {
-                if (!vehiculoData.reparaciones) vehiculoData.reparaciones = [];
-                vehiculoData.reparaciones.push({ fecha, km, detalle, costo, foto });
-                db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+                const data = todosLosVehiculos[vehiculoActual] || {};
+                if (!data.reparaciones) data.reparaciones = [];
+                data.reparaciones.push({ fecha, km, detalle, costo, foto });
+                db.collection("flota").doc(vehiculoActual).set(data, { merge: true });
                 document.getElementById('formReparacion').reset();
             };
 
@@ -283,8 +328,9 @@
         }
 
         function eliminarReparacion(index) {
-            vehiculoData.reparaciones.splice(index, 1);
-            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            data.reparaciones.splice(index, 1);
+            db.collection("flota").doc(vehiculoActual).set(data, { merge: true });
         }
 
         function renderReparaciones(list) {
@@ -303,43 +349,119 @@
             `).join('');
         }
 
-        function guardarViaje(e) {
+        async function guardarViaje(e) {
             e.preventDefault();
-            if (!vehiculoData.viajes) vehiculoData.viajes = [];
-            vehiculoData.viajes.push({
+            const vehiculoSeleccionado = document.getElementById('vj_vehiculo').value;
+            const vehiculoSelectElem = document.getElementById('vj_vehiculo');
+            const vehiculoNombre = vehiculoSelectElem.options[vehiculoSelectElem.selectedIndex].text;
+
+            const nuevoViaje = {
                 fecha: document.getElementById('vj_fecha').value,
+                vehiculoNombre: vehiculoNombre,
                 chofer: document.getElementById('vj_chofer').value,
                 destino: document.getElementById('vj_destino').value,
                 estado: document.getElementById('vj_estado').value
-            });
-            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+            };
+
+            const docRef = db.collection("flota").doc(vehiculoSeleccionado);
+            const docSnap = await docRef.get();
+            const targetData = docSnap.exists ? docSnap.data() : {};
+            const listaViajes = targetData.viajes || [];
+
+            listaViajes.push(nuevoViaje);
+            await docRef.set({ viajes: listaViajes }, { merge: true });
+
             document.getElementById('formViaje').reset();
+            document.getElementById('vj_vehiculo').value = vehiculoActual;
         }
 
-        function cambiarEstadoViaje(index) {
-            vehiculoData.viajes[index].estado = vehiculoData.viajes[index].estado === 'Pendiente' ? 'Realizado' : 'Pendiente';
-            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+        async function cambiarEstadoViaje(vehiculoId, originalIndex) {
+            const docRef = db.collection("flota").doc(vehiculoId);
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                const data = docSnap.data();
+                const lista = data.viajes || [];
+                if (lista[originalIndex]) {
+                    lista[originalIndex].estado = lista[originalIndex].estado === 'Pendiente' ? 'Realizado' : 'Pendiente';
+                    await docRef.set({ viajes: lista }, { merge: true });
+                }
+            }
         }
 
-        function eliminarViaje(index) {
-            vehiculoData.viajes.splice(index, 1);
-            db.collection("flota").doc(vehiculoActual).set(vehiculoData, { merge: true });
+        async function eliminarViaje(vehiculoId, originalIndex) {
+            const docRef = db.collection("flota").doc(vehiculoId);
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                const data = docSnap.data();
+                const lista = data.viajes || [];
+                lista.splice(originalIndex, 1);
+                await docRef.set({ viajes: lista }, { merge: true });
+            }
         }
 
         function renderViajes(list) {
             const tbody = document.getElementById('tablaViajes');
-            if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
-            tbody.innerHTML = list.map((item, index) => `
+            if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
+            tbody.innerHTML = list.map(item => `
                 <tr class="border-b">
-                    <td class="p-2 font-semibold">${item.fecha}</td><td class="p-2">${item.chofer}</td>
+                    <td class="p-2 font-semibold">${item.fecha}</td>
+                    <td class="p-2 font-bold text-blue-800">${item.vehiculoNombre}</td>
+                    <td class="p-2 font-semibold text-gray-800">${item.chofer}</td>
                     <td class="p-2">${item.destino}</td>
                     <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${item.estado}</span></td>
                     <td class="p-2 flex gap-2">
-                        <button onclick="cambiarEstadoViaje(${index})" class="text-blue-600 font-semibold">Cambiar Estado</button>
-                        <button onclick="eliminarViaje(${index})" class="text-red-500 font-bold">✕</button>
+                        <button onclick="cambiarEstadoViaje('${item.vehiculoId}', ${item.originalIndex})" class="text-blue-600 font-semibold">Cambiar Estado</button>
+                        <button onclick="eliminarViaje('${item.vehiculoId}', ${item.originalIndex})" class="text-red-500 font-bold">✕</button>
                     </td>
                 </tr>
             `).join('');
+        }
+
+        function renderResumenChoferes(todosLosViajes) {
+            const tbody = document.getElementById('tablaResumenChoferes');
+            if (!todosLosViajes.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros de viajes.</td></tr>';
+                return;
+            }
+
+            const resumen = {};
+            todosLosViajes.forEach(v => {
+                if (!v.fecha || !v.chofer) return;
+                const mesKey = v.fecha.substring(0, 7);
+                if (!resumen[mesKey]) resumen[mesKey] = {};
+                if (!resumen[mesKey][v.chofer]) resumen[mesKey][v.chofer] = [];
+                resumen[mesKey][v.chofer].push(v);
+            });
+
+            let html = '';
+            const mesesOrdenados = Object.keys(resumen).sort().reverse();
+
+            mesesOrdenados.forEach(mes => {
+                const choferes = resumen[mes];
+                for (const chofer in choferes) {
+                    const lista = choferes[chofer];
+                    const realizados = lista.filter(x => x.estado === 'Realizado').length;
+                    const detalles = lista.map(x => `
+                        <span class="inline-block bg-gray-100 rounded px-1.5 py-0.5 text-[10px] mr-1 mb-1 border border-gray-200">
+                            📅 ${x.fecha.split('-').slice(1).reverse().join('/')} - 🚗 ${x.vehiculoNombre} (${x.estado})
+                        </span>
+                    `).join('');
+
+                    html += `
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-2 font-bold text-gray-700">${mes}</td>
+                            <td class="p-2 font-semibold text-indigo-900">${chofer}</td>
+                            <td class="p-2">
+                                <span class="font-bold text-indigo-600 text-sm">${lista.length}</span> 
+                                <span class="text-xs text-gray-500">(${realizados} hechos)</span>
+                            </td>
+                            <td class="p-2">${detalles}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            tbody.innerHTML = html || '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros.</td></tr>';
         }
     </script>
 </body>

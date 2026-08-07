@@ -83,12 +83,31 @@
                 <div id="listaReparaciones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </section>
 
+            <!-- Tabla de Resumen por Chofer / Mes -->
+            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-indigo-600">
+                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📊 Total de Viajes por Chofer (Mensual)</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-indigo-100 border-b">
+                            <tr>
+                                <th class="p-2">Mes</th>
+                                <th class="p-2">Chofer</th>
+                                <th class="p-2">Total Viajes</th>
+                                <th class="p-2">Detalles (Días y Auto)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaResumenChoferes"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Historial Completo de Viajes -->
             <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-purple-600">
-                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">🚌 Agenda y Control de Viajes</h2>
+                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">🚌 Agenda e Historial Completo de Viajes</h2>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-purple-100 border-b">
-                            <tr><th class="p-2">Fecha</th><th class="p-2">Chofer</th><th class="p-2">Destino</th><th class="p-2">Estado</th></tr>
+                            <tr><th class="p-2">Fecha</th><th class="p-2">Vehículo</th><th class="p-2">Chofer</th><th class="p-2">Destino</th><th class="p-2">Estado</th></tr>
                         </thead>
                         <tbody id="tablaViajes"></tbody>
                     </table>
@@ -110,28 +129,49 @@
         const db = firebase.firestore();
 
         let vehiculoActual = 'auto1';
-        let unsubscribe = null;
+        let todosLosVehiculos = {};
         const itemsChecklist = ['Luces', 'Aceite', 'Agua', 'Refrigerante', 'Líquido de frenos', 'Neumáticos', 'Limpiaparabrisas', 'Batería'];
 
         document.addEventListener('DOMContentLoaded', () => {
             renderChecklist();
-            escucharVehiculo();
+            escucharFlota();
         });
 
         function cambiarVehiculo() {
             vehiculoActual = document.getElementById('vehiculoSelect').value;
-            escucharVehiculo();
+            renderVehiculoSeleccionado();
         }
 
-        function escucharVehiculo() {
-            if (unsubscribe) unsubscribe();
-            unsubscribe = db.collection("flota").doc(vehiculoActual).onSnapshot((doc) => {
-                const data = doc.exists ? doc.data() : {};
-                renderDatos(data);
+        function escucharFlota() {
+            db.collection("flota").onSnapshot((snapshot) => {
+                todosLosVehiculos = {};
+                let todosLosViajes = [];
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    todosLosVehiculos[doc.id] = data;
+
+                    if (data.viajes && Array.isArray(data.viajes)) {
+                        data.viajes.forEach(v => {
+                            todosLosViajes.push({
+                                ...v,
+                                vehiculoId: doc.id
+                            });
+                        });
+                    }
+                });
+
+                // Ordenar viajes por fecha descendente
+                todosLosViajes.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+                renderVehiculoSeleccionado();
+                renderViajes(todosLosViajes);
+                renderResumenChoferes(todosLosViajes);
             });
         }
 
-        function renderDatos(data) {
+        function renderVehiculoSeleccionado() {
+            const data = todosLosVehiculos[vehiculoActual] || {};
             document.getElementById('v_patente').value = data.patente || '';
             document.getElementById('v_marca').value = data.marca || '';
             document.getElementById('v_anio').value = data.anio || '';
@@ -149,7 +189,6 @@
 
             renderMantenimiento(data.mantenimientos || []);
             renderReparaciones(data.reparaciones || []);
-            renderViajes(data.viajes || []);
         }
 
         function renderChecklist() {
@@ -187,13 +226,63 @@
 
         function renderViajes(list) {
             const tbody = document.getElementById('tablaViajes');
-            if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
+            if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
             tbody.innerHTML = list.map(item => `
                 <tr class="border-b">
-                    <td class="p-2 font-semibold">${item.fecha}</td><td class="p-2">${item.chofer}</td><td class="p-2">${item.destino}</td>
+                    <td class="p-2 font-semibold">${item.fecha}</td>
+                    <td class="p-2 font-bold text-blue-800">${item.vehiculoNombre || 'Auto'}</td>
+                    <td class="p-2 font-semibold text-gray-800">${item.chofer}</td>
+                    <td class="p-2">${item.destino}</td>
                     <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${item.estado}</span></td>
                 </tr>
             `).join('');
+        }
+
+        function renderResumenChoferes(todosLosViajes) {
+            const tbody = document.getElementById('tablaResumenChoferes');
+            if (!todosLosViajes.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros de viajes.</td></tr>';
+                return;
+            }
+
+            const resumen = {};
+            todosLosViajes.forEach(v => {
+                if (!v.fecha || !v.chofer) return;
+                const mesKey = v.fecha.substring(0, 7); // ej: "2026-08"
+                if (!resumen[mesKey]) resumen[mesKey] = {};
+                if (!resumen[mesKey][v.chofer]) resumen[mesKey][v.chofer] = [];
+                resumen[mesKey][v.chofer].push(v);
+            });
+
+            let html = '';
+            const mesesOrdenados = Object.keys(resumen).sort().reverse();
+
+            mesesOrdenados.forEach(mes => {
+                const choferes = resumen[mes];
+                for (const chofer in choferes) {
+                    const lista = choferes[chofer];
+                    const realizados = lista.filter(x => x.estado === 'Realizado').length;
+                    const detalles = lista.map(x => `
+                        <span class="inline-block bg-gray-100 rounded px-1.5 py-0.5 text-[10px] mr-1 mb-1 border border-gray-200">
+                            📅 ${x.fecha.split('-').slice(1).reverse().join('/')} - 🚗 ${x.vehiculoNombre} (${x.estado})
+                        </span>
+                    `).join('');
+
+                    html += `
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-2 font-bold text-gray-700">${mes}</td>
+                            <td class="p-2 font-semibold text-indigo-900">${chofer}</td>
+                            <td class="p-2">
+                                <span class="font-bold text-indigo-600 text-sm">${lista.length}</span> 
+                                <span class="text-xs text-gray-500">(${realizados} hechos)</span>
+                            </td>
+                            <td class="p-2">${detalles}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            tbody.innerHTML = html || '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros.</td></tr>';
         }
     </script>
 </body>
