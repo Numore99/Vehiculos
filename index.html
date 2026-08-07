@@ -3,154 +3,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>La Costa Viajes - Control de Flota (Público)</title>
-    
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
-    <meta property="og:title" content="La Costa Viajes - Control de Flota">
-    <meta property="og:description" content="Sistema de gestión y seguimiento en tiempo real para vehículos y choferes.">
-    <meta property="og:image" content="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80">
-    <meta property="og:type" content="website">
+    <title>RESUMEN Y CONSULTA - Control de Flota</title>
 
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- Librería para Exportación a PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans pb-12">
+<body class="bg-gray-50 text-gray-800 font-sans pb-12">
 
-    <header class="bg-blue-900 text-white shadow-lg p-4 mb-6">
+    <!-- Toast de Notificaciones -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs px-4 py-3 rounded-lg shadow-xl hidden transition-all duration-300 z-50 flex items-center gap-2 border border-slate-700"></div>
+
+    <header class="bg-slate-900 text-white shadow-lg p-4 mb-6">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
-                <span class="text-3xl">🌊</span>
+                <span class="text-3xl">📊</span>
                 <div>
-                    <h1 class="text-2xl font-bold tracking-wide">LA COSTA VIAJES</h1>
-                    <p class="text-xs text-blue-200">Estado de Flota en Tiempo Real</p>
+                    <h1 class="text-2xl font-bold tracking-wide">PANEL DE CONSULTA DE FLOTA</h1>
+                    <p class="text-xs text-slate-300">Vista simplificada e interactiva de gastos y viajes</p>
                 </div>
             </div>
             
-            <div class="flex items-center gap-2 bg-blue-800 p-2 rounded-lg border border-blue-700">
-                <label for="vehiculoSelect" class="font-semibold text-sm">Vehículo Activo:</label>
-                <select id="vehiculoSelect" onchange="cambiarVehiculo()" class="bg-white text-gray-900 font-bold py-1 px-3 rounded shadow text-sm outline-none">
-                    <option value="auto1">🚗 ETIOS AG00GDV</option>
-                    <option value="auto2">🚗 CRONOS AG874IM</option>
-                    <option value="camioneta1">🚐 IVECO AH507WL</option>
-                    <option value="camioneta2">🚐 IVECO AG126BE</option>
-                </select>
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Botón de Exportación a PDF -->
+                <button onclick="exportarReportePDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-lg shadow flex items-center gap-2 transition">
+                    📄 Descargar Reporte PDF
+                </button>
+
+                <div class="flex items-center gap-2 bg-slate-800 p-2 rounded-lg border border-slate-700">
+                    <label for="vehiculoSelect" class="font-semibold text-sm">Vehículo:</label>
+                    <select id="vehiculoSelect" onchange="cambiarVehiculo(true)" class="bg-white text-gray-900 font-bold py-1 px-3 rounded shadow text-sm outline-none cursor-pointer">
+                        <option value="auto1">🚗 ETIOS AG00GDV</option>
+                        <option value="auto2">🚗 CRONOS AG874IM</option>
+                        <option value="camioneta1">🚐 IVECO AH507WL</option>
+                        <option value="camioneta2">🚐 IVECO AG126BE</option>
+                    </select>
+                </div>
             </div>
         </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-4 space-y-6">
-        <!-- Dashboard / KPIs -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-600 flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-bold text-gray-400 uppercase">Flota Total</p>
-                    <p class="text-2xl font-black text-gray-800" id="kpi_total">4 Vehículos</p>
-                </div>
-                <span class="text-3xl">🚐</span>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-yellow-500 flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-bold text-gray-400 uppercase">Viajes Pendientes</p>
-                    <p class="text-2xl font-black text-yellow-600" id="kpi_pendientes">0</p>
-                </div>
-                <span class="text-3xl">⏳</span>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-500 flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-bold text-gray-400 uppercase">Alertas / Vencimientos</p>
-                    <p class="text-2xl font-black text-red-600" id="kpi_alertas">0</p>
-                </div>
-                <span class="text-3xl">⚠️</span>
-            </div>
-        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="space-y-6">
-                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-blue-600">
-                    <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📄 Datos del Vehículo</h2>
-                    <div class="grid grid-cols-2 gap-3 text-sm">
-                        <div><label class="block text-xs font-semibold text-gray-500">PATENTE</label><input type="text" id="v_patente" readonly class="w-full border p-1 rounded font-bold uppercase bg-gray-50"></div>
-                        <div><label class="block text-xs font-semibold text-gray-500">MARCA / MODELO</label><input type="text" id="v_marca" readonly class="w-full border p-1 rounded bg-gray-50"></div>
-                        <div><label class="block text-xs font-semibold text-gray-500">AÑO</label><input type="text" id="v_anio" readonly class="w-full border p-1 rounded bg-gray-50"></div>
-                        <div><label class="block text-xs font-semibold text-gray-500">KM ACTUAL</label><input type="number" id="v_km" readonly class="w-full border p-1 rounded font-bold text-blue-600 bg-gray-50"></div>
+        <!-- Contenedor principal para PDF -->
+        <div id="areaImpresion" class="space-y-6 transition-all duration-500 rounded-2xl p-2">
+
+            <!-- Tarjetas Resumen de Datos y Finanzas -->
+            <section class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                
+                <!-- Recuadro Estilo Patente -->
+                <div id="cardVehiculo" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between transition-all duration-300">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 block">Vehículo Seleccionado</span>
+                    
+                    <div>
+                        <!-- Diseño Chapa Patente -->
+                        <div class="inline-flex flex-col items-center border-2 border-slate-900 rounded-md bg-white overflow-hidden shadow-xs mb-2">
+                            <div class="bg-blue-800 w-full text-[8px] text-white font-extrabold tracking-widest px-3 py-0.5 text-center uppercase">ARGENTINA</div>
+                            <div id="lbl_patente" class="px-3 py-0.5 font-mono font-black text-lg text-slate-900 tracking-widest uppercase">
+                                ------
+                            </div>
+                        </div>
+
+                        <h3 id="lbl_modelo" class="text-xs font-bold text-gray-600 uppercase">--</h3>
+                        <p id="lbl_km" class="text-sm font-extrabold text-blue-600 mt-0.5">-- KM</p>
+                    </div>
+                </div>
+
+                <div class="bg-orange-50/60 p-4 rounded-xl shadow-sm border border-orange-200 flex flex-col justify-between">
+                    <span class="text-xs font-bold text-orange-600">TOTAL COMBUSTIBLE</span>
+                    <p id="costoTotalCombustible" class="text-xl font-black text-orange-700">$0</p>
+                </div>
+                <div class="bg-red-50/60 p-4 rounded-xl shadow-sm border border-red-200 flex flex-col justify-between">
+                    <span class="text-xs font-bold text-red-600">TOTAL REPARACIONES</span>
+                    <p id="costoTotalReparaciones" class="text-xl font-black text-red-700">$0</p>
+                </div>
+                <div class="bg-emerald-50/60 p-4 rounded-xl shadow-sm border border-emerald-200 flex flex-col justify-between">
+                    <span class="text-xs font-bold text-emerald-600">GASTO TOTAL ACUMULADO</span>
+                    <p id="costoTotalGeneral" class="text-2xl font-black text-emerald-800">$0</p>
+                </div>
+            </section>
+
+            <!-- Vencimientos y Checklist Rápido -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                    <h2 class="text-base font-bold text-gray-700 mb-3 flex items-center gap-2">📅 Estado de Vencimientos</h2>
+                    <div id="vencimientosContainer" class="grid grid-cols-2 gap-3 text-xs">
+                        <!-- Carga dinámica -->
                     </div>
                 </section>
 
-                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-yellow-500">
-                    <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📅 Vencimientos Importantes</h2>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between items-center"><span>🛡️ Seguro:</span><input type="date" id="venc_seguro" disabled class="border p-1 rounded text-xs"></div>
-                        <div class="flex justify-between items-center"><span>🔍 VTV:</span><input type="date" id="venc_vtv" disabled class="border p-1 rounded text-xs"></div>
-                        <div class="flex justify-between items-center"><span>⚙️ RTO:</span><input type="date" id="venc_rto" disabled class="border p-1 rounded text-xs"></div>
-                        <div class="flex justify-between items-center"><span>🧯 Matafuego:</span><input type="date" id="venc_matafuego" disabled class="border p-1 rounded text-xs"></div>
-                    </div>
-                </section>
-
-                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-green-500">
-                    <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📋 Control Chequeo Rápido</h2>
-                    <div id="checklistContainer" class="grid grid-cols-2 gap-2 text-sm"></div>
-                    <div class="mt-4">
-                        <label class="block text-xs font-semibold text-gray-500 mb-1">NOTAS / OBSERVACIONES</label>
-                        <textarea id="checklistNotas" readonly rows="4" class="w-full border p-2 rounded resize-none text-sm bg-gray-50"></textarea>
+                <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                    <h2 class="text-base font-bold text-gray-700 mb-3 flex items-center gap-2">📋 Estado del Check de Seguridad</h2>
+                    <div id="checklistContainer" class="grid grid-cols-2 gap-2 text-xs">
+                        <!-- Carga dinámica -->
                     </div>
                 </section>
             </div>
 
-            <div class="md:col-span-2 space-y-6">
-                <section class="bg-white p-5 rounded-xl shadow-md">
-                    <h2 class="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">🔧 Mantenimientos Realizados</h2>
+            <!-- Viajes y Choferes del Vehículo Seleccionado -->
+            <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-bold text-gray-700 flex items-center gap-2">🚌 Historial de Viajes y Choferes</h2>
+                    <span id="totalViajesBadge" class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">0 viajes registrados</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-100 border-b">
+                            <tr>
+                                <th class="p-2.5">Fecha</th>
+                                <th class="p-2.5">Chofer</th>
+                                <th class="p-2.5">Destino / Ruta</th>
+                                <th class="p-2.5">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaViajesVehiculo">
+                            <tr><td colspan="4" class="p-4 text-center text-gray-400">Cargando viajes...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Historial de Combustible y Mantenimientos -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                    <h2 class="text-base font-bold text-gray-700 mb-3 flex items-center gap-2">⛽ Últimas Cargas de Combustible</h2>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
-                            <thead class="bg-gray-100 border-b">
-                                <tr><th class="p-2">Fecha</th><th class="p-2">KM</th><th class="p-2">Trabajo Realizado</th><th class="p-2">Próx. Service</th><th class="p-2">Obs.</th></tr>
-                            </thead>
-                            <tbody id="tablaMantenimiento"></tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-red-500">
-                    <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">🚨 Registro de Reparaciones / Daños</h2>
-                    <div id="listaReparaciones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-                </section>
-
-                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-indigo-600">
-                    <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📊 Total de Viajes por Chofer (Mensual)</h2>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-indigo-100 border-b">
+                            <thead class="bg-orange-50 border-b">
                                 <tr>
-                                    <th class="p-2">Mes</th>
-                                    <th class="p-2">Chofer</th>
-                                    <th class="p-2">Total Viajes</th>
-                                    <th class="p-2">Detalles (Días y Auto)</th>
+                                    <th class="p-2">Fecha</th>
+                                    <th class="p-2">KM</th>
+                                    <th class="p-2">Litros</th>
+                                    <th class="p-2">Costo</th>
                                 </tr>
                             </thead>
-                            <tbody id="tablaResumenChoferes"></tbody>
+                            <tbody id="tablaCombustible">
+                                <tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros.</td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </section>
 
-                <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-purple-600">
-                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
-                        <h2 class="text-lg font-bold text-gray-700 flex items-center gap-2">🚌 Agenda e Historial Completo de Viajes</h2>
-                        <input type="text" id="buscarViaje" onkeyup="filtrarViajes()" placeholder="🔍 Buscar destino o chofer..." class="border p-1.5 rounded text-xs w-full sm:w-64 outline-none focus:ring-2 focus:ring-purple-400">
-                    </div>
+                <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                    <h2 class="text-base font-bold text-gray-700 mb-3 flex items-center gap-2">🔧 Mantenimientos Realizados</h2>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
-                            <thead class="bg-purple-100 border-b">
-                                <tr><th class="p-2">Fecha</th><th class="p-2">Vehículo</th><th class="p-2">Chofer</th><th class="p-2">Destino</th><th class="p-2">Estado</th></tr>
+                            <thead class="bg-blue-50 border-b">
+                                <tr>
+                                    <th class="p-2">Fecha</th>
+                                    <th class="p-2">KM</th>
+                                    <th class="p-2">Trabajo</th>
+                                    <th class="p-2">Próx. Service</th>
+                                </tr>
                             </thead>
-                            <tbody id="tablaViajes"></tbody>
+                            <tbody id="tablaMantenimiento">
+                                <tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros.</td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </section>
             </div>
+
         </div>
+
+        <!-- Resumen General por Vehículo -->
+        <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+            <h2 class="text-lg font-bold text-gray-700 mb-1 flex items-center gap-2">📊 Resumen General de Viajes por Vehículo</h2>
+            <p class="text-xs text-gray-500 mb-4">Visualización consolidada de la actividad de toda la flota.</p>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" id="resumenGlobalFlota">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </section>
+
     </main>
 
     <script>
+        function mostrarToast(mensaje) {
+            const toast = document.getElementById('toast');
+            toast.innerHTML = mensaje;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
         const firebaseConfig = {
             apiKey: "AIzaSyA7bzz1r--DrVexrKk_WKPU46UNgZzCn_0",
             authDomain: "la-costa-viajes.firebaseapp.com",
@@ -164,207 +202,221 @@
 
         let vehiculoActual = 'auto1';
         let todosLosVehiculos = {};
-        let listaGlobalViajes = [];
         const itemsChecklist = ['Luces', 'Aceite', 'Agua', 'Refrigerante', 'Líquido de frenos', 'Neumáticos', 'Limpiaparabrisas', 'Batería'];
 
         document.addEventListener('DOMContentLoaded', () => {
-            renderChecklist();
             escucharFlota();
         });
 
-        function cambiarVehiculo() {
+        function cambiarVehiculo(notificar = false) {
             vehiculoActual = document.getElementById('vehiculoSelect').value;
-            renderVehiculoSeleccionado();
+            
+            // Actualizamos la vista superior y re-renderizamos el panel inferior
+            renderVistaVehiculo();
+            renderResumenGlobalFlota();
+
+            if (notificar) {
+                const data = todosLosVehiculos[vehiculoActual] || {};
+                const nombre = data.patente ? `${data.patente.toUpperCase()} (${data.marca || ''})` : vehiculoActual.toUpperCase();
+                
+                // Efecto de iluminación en el panel superior
+                const card = document.getElementById('cardVehiculo');
+                card.classList.add('ring-4', 'ring-blue-500', 'scale-[1.02]');
+                setTimeout(() => {
+                    card.classList.remove('ring-4', 'ring-blue-500', 'scale-[1.02]');
+                }, 600);
+
+                mostrarToast(`🚗 Cambiado a <strong>${nombre}</strong>`);
+            }
+        }
+
+        function verDetalleVehiculo(id) {
+            document.getElementById('vehiculoSelect').value = id;
+            cambiarVehiculo(true);
+
+            // Scroll suave hacia la parte superior
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function escucharFlota() {
             db.collection("flota").onSnapshot((snapshot) => {
                 todosLosVehiculos = {};
-                listaGlobalViajes = [];
-                let totalAlertas = 0;
-
                 snapshot.forEach(doc => {
-                    const data = doc.data();
-                    todosLosVehiculos[doc.id] = data;
-
-                    // Conteo de alertas
-                    ['venc_seguro', 'venc_vtv', 'venc_rto', 'venc_matafuego'].forEach(f => {
-                        if (evaluarSemaforo(data[f]) !== 'ok') totalAlertas++;
-                    });
-
-                    if (data.viajes && Array.isArray(data.viajes)) {
-                        data.viajes.forEach(v => {
-                            listaGlobalViajes.push({
-                                ...v,
-                                vehiculoId: doc.id
-                            });
-                        });
-                    }
+                    todosLosVehiculos[doc.id] = doc.data();
                 });
 
-                listaGlobalViajes.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-                document.getElementById('kpi_pendientes').innerText = listaGlobalViajes.filter(v => v.estado === 'Pendiente').length;
-                document.getElementById('kpi_alertas').innerText = totalAlertas;
-
-                renderVehiculoSeleccionado();
-                renderViajes(listaGlobalViajes);
-                renderResumenChoferes(listaGlobalViajes);
+                renderVistaVehiculo();
+                renderResumenGlobalFlota();
             });
         }
 
         function evaluarSemaforo(fechaStr) {
-            if (!fechaStr) return 'ok';
+            if (!fechaStr) return { estado: 'ok', clase: 'bg-gray-100 text-gray-600 border-gray-200', texto: 'No especificada' };
             const hoy = new Date();
             hoy.setHours(0,0,0,0);
             const fecha = new Date(fechaStr + 'T00:00:00');
             const difDias = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
 
-            if (difDias < 0) return 'vencido';
-            if (difDias <= 15) return 'por_vencer';
-            return 'ok';
+            if (difDias < 0) return { estado: 'vencido', clase: 'bg-red-100 text-red-800 border-red-300', texto: `Vencido (${fechaStr})` };
+            if (difDias <= 15) return { estado: 'por_vencer', clase: 'bg-yellow-100 text-yellow-800 border-yellow-300', texto: `Por vencer (${fechaStr})` };
+            return { estado: 'ok', clase: 'bg-green-100 text-green-800 border-green-200', texto: fechaStr };
         }
 
-        function aplicarSemaforo(elemId, fechaStr) {
-            const elem = document.getElementById(elemId);
-            if (!elem) return;
-            const estado = evaluarSemaforo(fechaStr);
-            elem.className = "border p-1 rounded text-xs font-bold ";
-            if (estado === 'vencido') elem.className += "bg-red-100 text-red-800 border-red-400";
-            else if (estado === 'por_vencer') elem.className += "bg-yellow-100 text-yellow-800 border-yellow-400";
-            else elem.className += "bg-green-100 text-green-800 border-green-300";
-        }
-
-        function renderVehiculoSeleccionado() {
+        function renderVistaVehiculo() {
             const data = todosLosVehiculos[vehiculoActual] || {};
-            document.getElementById('v_patente').value = data.patente || '';
-            document.getElementById('v_marca').value = data.marca || '';
-            document.getElementById('v_anio').value = data.anio || '';
-            document.getElementById('v_km').value = data.km || '';
+            
+            // Ficha Patente y Modelo
+            document.getElementById('lbl_patente').innerText = data.patente ? data.patente.toUpperCase() : 'NO CARGADO';
+            document.getElementById('lbl_modelo').innerText = data.marca || 'Vehículo sin especificar';
+            document.getElementById('lbl_km').innerText = `${data.km ? Number(data.km).toLocaleString('es-AR') : '0'} KM`;
 
-            document.getElementById('venc_seguro').value = data.venc_seguro || '';
-            document.getElementById('venc_vtv').value = data.venc_vtv || '';
-            document.getElementById('venc_rto').value = data.venc_rto || '';
-            document.getElementById('venc_matafuego').value = data.venc_matafuego || '';
+            // Finanzas y Gastos
+            const totComb = (data.combustible || []).reduce((sum, item) => sum + (Number(item.costo) || 0), 0);
+            const totRep = (data.reparaciones || []).reduce((sum, item) => sum + (Number(item.costo) || 0), 0);
+            const totGen = totComb + totRep;
 
-            aplicarSemaforo('venc_seguro', data.venc_seguro);
-            aplicarSemaforo('venc_vtv', data.venc_vtv);
-            aplicarSemaforo('venc_rto', data.venc_rto);
-            aplicarSemaforo('venc_matafuego', data.venc_matafuego);
+            document.getElementById('costoTotalCombustible').innerText = `$${totComb.toLocaleString('es-AR')}`;
+            document.getElementById('costoTotalReparaciones').innerText = `$${totRep.toLocaleString('es-AR')}`;
+            document.getElementById('costoTotalGeneral').innerText = `$${totGen.toLocaleString('es-AR')}`;
 
-            document.getElementById('checklistNotas').value = data.checklistNotas || '';
-
-            itemsChecklist.forEach((item, index) => {
-                const chk = document.getElementById(`chk_${index}`);
-                if (chk) chk.checked = !!(data.checklist && data.checklist[item]);
-            });
-
-            renderMantenimiento(data.mantenimientos || []);
-            renderReparaciones(data.reparaciones || []);
-        }
-
-        function renderChecklist() {
-            const container = document.getElementById('checklistContainer');
-            container.innerHTML = itemsChecklist.map((item, index) => `
-                <label class="flex items-center gap-2 bg-gray-50 p-2 rounded border cursor-not-allowed">
-                    <input type="checkbox" id="chk_${index}" disabled class="rounded text-blue-600">
-                    <span class="text-xs">${item}</span>
-                </label>
-            `).join('');
-        }
-
-        function renderMantenimiento(list) {
-            const tbody = document.getElementById('tablaMantenimiento');
-            if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
-            tbody.innerHTML = list.map(item => `
-                <tr class="border-b"><td class="p-2">${item.fecha}</td><td class="p-2 font-semibold">${item.km}</td><td class="p-2">${item.trabajo}</td><td class="p-2 text-blue-600 font-semibold">${item.prox}</td><td class="p-2 text-gray-600">${item.obs}</td></tr>
-            `).join('');
-        }
-
-        function renderReparaciones(list) {
-            const container = document.getElementById('listaReparaciones');
-            if(!list.length) { container.innerHTML = '<p class="text-xs text-gray-400 col-span-2">Sin registros.</p>'; return; }
-            container.innerHTML = list.map(item => `
-                <div class="border rounded-lg p-3 bg-red-50/30 text-xs flex flex-col justify-between">
-                    <div>
-                        <div class="font-bold text-gray-800">${item.detalle}</div>
-                        <div class="text-gray-500">📅 ${item.fecha} | 🛠️ ${item.km} KM</div>
-                        ${item.costo ? `<div class="text-green-700 font-bold mt-1">Costo: $${item.costo}</div>` : ''}
+            // Vencimientos
+            const vencimientos = [
+                { label: '🛡️ Seguro', val: data.venc_seguro },
+                { label: '🔍 VTV', val: data.venc_vtv },
+                { label: '⚙️ RTO', val: data.venc_rto },
+                { label: '🧯 Matafuego', val: data.venc_matafuego }
+            ];
+            
+            document.getElementById('vencimientosContainer').innerHTML = vencimientos.map(v => {
+                const info = evaluarSemaforo(v.val);
+                return `
+                    <div class="p-2 rounded border flex flex-col justify-between ${info.clase}">
+                        <span class="font-bold">${v.label}</span>
+                        <span class="text-[11px] font-semibold mt-1">${info.texto}</span>
                     </div>
-                    ${item.foto ? `<img src="${item.foto}" class="mt-2 rounded h-32 w-full object-cover border" />` : ''}
-                </div>
-            `).join('');
-        }
+                `;
+            }).join('');
 
-        function renderViajes(list) {
-            const tbody = document.getElementById('tablaViajes');
-            if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
-            tbody.innerHTML = list.map(item => `
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="p-2 font-semibold">${item.fecha}</td>
-                    <td class="p-2 font-bold text-blue-800">${item.vehiculoNombre || 'Auto'}</td>
-                    <td class="p-2 font-semibold text-gray-800">${item.chofer}</td>
-                    <td class="p-2">${item.destino}</td>
-                    <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${item.estado}</span></td>
-                </tr>
-            `).join('');
-        }
+            // Checklist
+            const checklistData = data.checklist || {};
+            document.getElementById('checklistContainer').innerHTML = itemsChecklist.map(item => {
+                const checked = !!checklistData[item];
+                return `
+                    <div class="flex items-center gap-2 p-1.5 rounded border bg-gray-50/50">
+                        <span class="${checked ? 'text-green-600 font-bold' : 'text-gray-300'}">${checked ? '✔' : '✖'}</span>
+                        <span class="text-gray-700">${item}</span>
+                    </div>
+                `;
+            }).join('');
 
-        function filtrarViajes() {
-            const q = document.getElementById('buscarViaje').value.toLowerCase();
-            const filtrados = listaGlobalViajes.filter(v => 
-                (v.chofer && v.chofer.toLowerCase().includes(q)) || 
-                (v.destino && v.destino.toLowerCase().includes(q)) ||
-                (v.vehiculoNombre && v.vehiculoNombre.toLowerCase().includes(q))
-            );
-            renderViajes(filtrados);
-        }
-
-        function renderResumenChoferes(todosLosViajes) {
-            const tbody = document.getElementById('tablaResumenChoferes');
-            if (!todosLosViajes.length) {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros de viajes.</td></tr>';
-                return;
+            // Combustible Tabla
+            const combList = data.combustible || [];
+            const tbodyComb = document.getElementById('tablaCombustible');
+            if (!combList.length) {
+                tbodyComb.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin cargas registradas.</td></tr>';
+            } else {
+                tbodyComb.innerHTML = combList.slice(-5).reverse().map(c => `
+                    <tr class="border-b">
+                        <td class="p-2">${c.fecha}</td>
+                        <td class="p-2 font-semibold">${c.km} KM</td>
+                        <td class="p-2 text-orange-600 font-bold">${c.litros} L</td>
+                        <td class="p-2 text-emerald-700 font-bold">$${Number(c.costo).toLocaleString('es-AR')}</td>
+                    </tr>
+                `).join('');
             }
 
-            const resumen = {};
-            todosLosViajes.forEach(v => {
-                if (!v.fecha || !v.chofer) return;
-                const mesKey = v.fecha.substring(0, 7);
-                if (!resumen[mesKey]) resumen[mesKey] = {};
-                if (!resumen[mesKey][v.chofer]) resumen[mesKey][v.chofer] = [];
-                resumen[mesKey][v.chofer].push(v);
-            });
+            // Mantenimiento Tabla
+            const mantList = data.mantenimientos || [];
+            const tbodyMant = document.getElementById('tablaMantenimiento');
+            if (!mantList.length) {
+                tbodyMant.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros de mantenimiento.</td></tr>';
+            } else {
+                tbodyMant.innerHTML = mantList.slice(-5).reverse().map(m => `
+                    <tr class="border-b">
+                        <td class="p-2">${m.fecha}</td>
+                        <td class="p-2 font-semibold">${m.km} KM</td>
+                        <td class="p-2">${m.trabajo}</td>
+                        <td class="p-2 text-blue-600 font-bold">${m.prox ? m.prox + ' KM' : '-'}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Viajes del Vehículo
+            const viajesList = data.viajes || [];
+            document.getElementById('totalViajesBadge').innerText = `${viajesList.length} viajes registrados`;
+            const tbodyViajes = document.getElementById('tablaViajesVehiculo');
+            if (!viajesList.length) {
+                tbodyViajes.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400">Sin viajes registrados para este vehículo.</td></tr>';
+            } else {
+                tbodyViajes.innerHTML = viajesList.slice().reverse().map(v => `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2.5 font-semibold">${v.fecha}</td>
+                        <td class="p-2.5 font-bold text-slate-700">${v.chofer}</td>
+                        <td class="p-2.5">${v.destino}</td>
+                        <td class="p-2.5">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${v.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                                ${v.estado}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function renderResumenGlobalFlota() {
+            const container = document.getElementById('resumenGlobalFlota');
+            const nombresFlota = {
+                'auto1': '🚗 ETIOS AG00GDV',
+                'auto2': '🚗 CRONOS AG874IM',
+                'camioneta1': '🚐 IVECO AH507WL',
+                'camioneta2': '🚐 IVECO AG126BE'
+            };
 
             let html = '';
-            const mesesOrdenados = Object.keys(resumen).sort().reverse();
+            for (const id in nombresFlota) {
+                const vData = todosLosVehiculos[id] || {};
+                const viajes = vData.viajes || [];
+                const realizados = viajes.filter(x => x.estado === 'Realizado').length;
+                const pendientes = viajes.filter(x => x.estado === 'Pendiente').length;
+                const totComb = (vData.combustible || []).reduce((sum, i) => sum + (Number(i.costo) || 0), 0);
+                const totRep = (vData.reparaciones || []).reduce((sum, i) => sum + (Number(i.costo) || 0), 0);
+                const esSeleccionado = (id === vehiculoActual);
 
-            mesesOrdenados.forEach(mes => {
-                const choferes = resumen[mes];
-                for (const chofer in choferes) {
-                    const lista = choferes[chofer];
-                    const realizados = lista.filter(x => x.estado === 'Realizado').length;
-                    const detalles = lista.map(x => `
-                        <span class="inline-block bg-gray-100 rounded px-1.5 py-0.5 text-[10px] mr-1 mb-1 border border-gray-200">
-                            📅 ${x.fecha.split('-').slice(1).reverse().join('/')} - 🚗 ${x.vehiculoNombre} (${x.estado})
-                        </span>
-                    `).join('');
+                html += `
+                    <div class="bg-slate-50 border ${esSeleccionado ? 'border-blue-500 ring-2 ring-blue-300' : 'border-slate-200'} rounded-xl p-4 flex flex-col justify-between shadow-xs transition-all">
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm mb-2">${nombresFlota[id]}</h3>
+                            <div class="space-y-1 text-xs text-gray-600 mb-3">
+                                <p>📍 Total Viajes: <strong class="text-slate-800">${viajes.length}</strong> (${realizados} OK / ${pendientes} Pend.)</p>
+                                <p>💰 Gastos Flota: <strong class="text-emerald-700">$${(totComb + totRep).toLocaleString('es-AR')}</strong></p>
+                            </div>
+                        </div>
+                        <button onclick="verDetalleVehiculo('${id}')" class="w-full ${esSeleccionado ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-800 hover:bg-slate-900'} text-white text-xs font-bold py-1.5 rounded transition">
+                            ${esSeleccionado ? '✓ Viendo Detalle' : 'Ver Detalle'}
+                        </button>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
 
-                    html += `
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="p-2 font-bold text-gray-700">${mes}</td>
-                            <td class="p-2 font-semibold text-indigo-900">${chofer}</td>
-                            <td class="p-2">
-                                <span class="font-bold text-indigo-600 text-sm">${lista.length}</span> 
-                                <span class="text-xs text-gray-500">(${realizados} hechos)</span>
-                            </td>
-                            <td class="p-2">${detalles}</td>
-                        </tr>
-                    `;
-                }
+        /* EXPORTACIÓN A PDF */
+        function exportarReportePDF() {
+            const elemento = document.getElementById('areaImpresion');
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            
+            const opt = {
+                margin:       0.4,
+                filename:     `Reporte_Flota_${data.patente || vehiculoActual}_${new Date().toISOString().slice(0,10)}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            mostrarToast("📄 Generando PDF, por favor espere...");
+            html2pdf().set(opt).from(elemento).save().then(() => {
+                mostrarToast("✅ PDF descargado exitosamente");
             });
-
-            tbody.innerHTML = html || '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros.</td></tr>';
         }
     </script>
 </body>

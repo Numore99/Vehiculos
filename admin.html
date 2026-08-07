@@ -6,14 +6,11 @@
     <title>ADMINISTRACIÓN - Control de Flota</title>
 
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
-    <meta property="og:title" content="La Costa Viajes - Control de Flota">
-    <meta property="og:description" content="Sistema de gestión y seguimiento en tiempo real para vehículos y choferes.">
-    <meta property="og:image" content="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80">
-    <meta property="og:type" content="website">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- Librería para Exportación a PDF Limpio -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans pb-12">
 
@@ -42,19 +39,27 @@
                 </div>
             </div>
             
-            <div class="flex items-center gap-2 bg-blue-800 p-2 rounded-lg border border-blue-700">
-                <label for="vehiculoSelect" class="font-semibold text-sm">Vehículo:</label>
-                <select id="vehiculoSelect" onchange="cambiarVehiculo()" class="bg-white text-gray-900 font-bold py-1 px-3 rounded shadow text-sm outline-none">
-                    <option value="auto1">🚗 ETIOS AG00GDV</option>
-                    <option value="auto2">🚗 CRONOS AG874IM</option>
-                    <option value="camioneta1">🚐 IVECO AH507WL</option>
-                    <option value="camioneta2">🚐 IVECO AG126BE</option>
-                </select>
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Botón de Exportación a PDF -->
+                <button onclick="exportarReportePDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-3 rounded shadow flex items-center gap-1 transition">
+                    📄 Descargar PDF Resumido
+                </button>
+
+                <div class="flex items-center gap-2 bg-blue-800 p-2 rounded-lg border border-blue-700">
+                    <label for="vehiculoSelect" class="font-semibold text-sm">Vehículo:</label>
+                    <select id="vehiculoSelect" onchange="cambiarVehiculo()" class="bg-white text-gray-900 font-bold py-1 px-3 rounded shadow text-sm outline-none">
+                        <option value="auto1">🚗 ETIOS AG00GDV</option>
+                        <option value="auto2">🚗 CRONOS AG874IM</option>
+                        <option value="camioneta1">🚐 IVECO AH507WL</option>
+                        <option value="camioneta2">🚐 IVECO AG126BE</option>
+                    </select>
+                </div>
             </div>
         </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Columna Izquierda: Datos, Vencimientos, Checklist -->
         <div class="space-y-6">
             <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-blue-600">
                 <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📄 Datos del Vehículo</h2>
@@ -86,7 +91,54 @@
             </section>
         </div>
 
+        <!-- Columna Derecha: Tablas, Operación y Finanzas -->
         <div class="md:col-span-2 space-y-6">
+
+            <!-- Módulo Financiero y Resumen de Gastos -->
+            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-emerald-600">
+                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">💰 Módulo de Gastos y Costos Totales</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                    <div class="bg-orange-50 border border-orange-200 p-3 rounded-lg text-center">
+                        <p class="text-xs text-orange-600 font-bold">TOTAL COMBUSTIBLE</p>
+                        <p id="costoTotalCombustible" class="text-xl font-black text-orange-700">$0</p>
+                    </div>
+                    <div class="bg-red-50 border border-red-200 p-3 rounded-lg text-center">
+                        <p class="text-xs text-red-600 font-bold">TOTAL REPARACIONES</p>
+                        <p id="costoTotalReparaciones" class="text-xl font-black text-red-700">$0</p>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg text-center">
+                        <p class="text-xs text-emerald-600 font-bold">GASTO TOTAL ACUMULADO</p>
+                        <p id="costoTotalGeneral" class="text-2xl font-black text-emerald-800">$0</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Control de Combustible y Consumo -->
+            <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-orange-500">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-gray-700 flex items-center gap-2">⛽ Control de Combustible y Consumo</h2>
+                    <button type="button" onclick="document.getElementById('formCombustible').classList.toggle('hidden')" class="bg-orange-600 hover:bg-orange-700 text-white text-xs px-3 py-2 rounded shadow font-semibold transition">+ Cargar Nafta</button>
+                </div>
+                <form id="formCombustible" onsubmit="guardarCombustible(event)" class="hidden bg-orange-50 p-3 rounded-lg border mb-4 space-y-2 text-xs">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <input type="date" id="comb_fecha" required class="p-2 border rounded">
+                        <input type="number" id="comb_km" placeholder="KM al Cargar" required class="p-2 border rounded">
+                        <input type="number" step="0.01" id="comb_litros" placeholder="Litros Cargados" required class="p-2 border rounded">
+                        <input type="number" id="comb_costo" placeholder="Costo Total ($)" required class="p-2 border rounded">
+                    </div>
+                    <button type="submit" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded w-full transition">Registrar Carga</button>
+                </form>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-orange-100 border-b">
+                            <tr><th class="p-2">Fecha</th><th class="p-2">KM</th><th class="p-2">Litros</th><th class="p-2">Costo ($)</th><th class="p-2">Consumo</th><th class="p-2">Acción</th></tr>
+                        </thead>
+                        <tbody id="tablaCombustible"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Mantenimiento -->
             <section class="bg-white p-5 rounded-xl shadow-md">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-gray-700">🔧 Mantenimientos Realizados</h2>
@@ -105,13 +157,14 @@
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-gray-100 border-b">
-                            <tr><th>Fecha</th><th>KM</th><th>Trabajo</th><th>Próx</th><th>Obs.</th><th>Acción</th></tr>
+                            <tr><th class="p-2">Fecha</th><th class="p-2">KM</th><th class="p-2">Trabajo</th><th class="p-2">Próx</th><th class="p-2">Obs.</th><th class="p-2">Acción</th></tr>
                         </thead>
                         <tbody id="tablaMantenimiento"></tbody>
                     </table>
                 </div>
             </section>
 
+            <!-- Reparaciones -->
             <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-red-500">
                 <h2 class="text-lg font-bold text-gray-700 mb-3">🚨 Registro de Reparaciones / Daños</h2>
                 <form id="formReparacion" onsubmit="guardarReparacion(event)" class="bg-gray-50 p-3 rounded-lg border mb-4 space-y-3 text-xs">
@@ -130,23 +183,51 @@
                 <div id="listaReparaciones" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </section>
 
+            <!-- NUEVA SECCIÓN DE VEHÍCULOS INDIVIDUALES EN TARJETAS DE ACORDEÓN -->
             <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-indigo-600">
-                <h2 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">📊 Total de Viajes por Chofer (Mensual)</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-indigo-100 border-b">
-                            <tr>
-                                <th class="p-2">Mes</th>
-                                <th class="p-2">Chofer</th>
-                                <th class="p-2">Total Viajes</th>
-                                <th class="p-2">Detalles (Días y Auto)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaResumenChoferes"></tbody>
-                    </table>
+                <h2 class="text-lg font-bold text-gray-700 mb-1 flex items-center gap-2">📊 Registros de Viajes por Vehículo</h2>
+                <p class="text-xs text-gray-500 mb-4">Haz clic en cada vehículo para ver sus viajes ordenados por mes y chofer.</p>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Tarjeta Auto 1 -->
+                    <details class="bg-indigo-50/50 border border-indigo-200 rounded-xl overflow-hidden group">
+                        <summary class="p-4 font-bold text-indigo-950 flex justify-between items-center cursor-pointer bg-indigo-100/60 hover:bg-indigo-100 transition">
+                            <span class="flex items-center gap-2">🚗 ETIOS AG00GDV</span>
+                            <span class="text-xs bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+                        <div id="panel_auto1" class="p-3 text-xs space-y-2 border-t border-indigo-100">Cargando datos...</div>
+                    </details>
+
+                    <!-- Tarjeta Auto 2 -->
+                    <details class="bg-indigo-50/50 border border-indigo-200 rounded-xl overflow-hidden group">
+                        <summary class="p-4 font-bold text-indigo-950 flex justify-between items-center cursor-pointer bg-indigo-100/60 hover:bg-indigo-100 transition">
+                            <span class="flex items-center gap-2">🚗 CRONOS AG874IM</span>
+                            <span class="text-xs bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+                        <div id="panel_auto2" class="p-3 text-xs space-y-2 border-t border-indigo-100">Cargando datos...</div>
+                    </details>
+
+                    <!-- Tarjeta Camioneta 1 -->
+                    <details class="bg-indigo-50/50 border border-indigo-200 rounded-xl overflow-hidden group">
+                        <summary class="p-4 font-bold text-indigo-950 flex justify-between items-center cursor-pointer bg-indigo-100/60 hover:bg-indigo-100 transition">
+                            <span class="flex items-center gap-2">🚐 IVECO AH507WL</span>
+                            <span class="text-xs bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+                        <div id="panel_camioneta1" class="p-3 text-xs space-y-2 border-t border-indigo-100">Cargando datos...</div>
+                    </details>
+
+                    <!-- Tarjeta Camioneta 2 -->
+                    <details class="bg-indigo-50/50 border border-indigo-200 rounded-xl overflow-hidden group">
+                        <summary class="p-4 font-bold text-indigo-950 flex justify-between items-center cursor-pointer bg-indigo-100/60 hover:bg-indigo-100 transition">
+                            <span class="flex items-center gap-2">🚐 IVECO AG126BE</span>
+                            <span class="text-xs bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+                        <div id="panel_camioneta2" class="p-3 text-xs space-y-2 border-t border-indigo-100">Cargando datos...</div>
+                    </details>
                 </div>
             </section>
 
+            <!-- Agenda de Viajes -->
             <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-purple-600">
                 <h2 class="text-lg font-bold text-gray-700 mb-3">🚌 Agenda y Control de Viajes</h2>
                 <form id="formViaje" onsubmit="guardarViaje(event)" class="bg-purple-50 p-3 rounded-lg border mb-4 space-y-2 text-xs">
@@ -170,7 +251,7 @@
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-purple-100 border-b">
-                            <tr><th>Fecha</th><th>Vehículo</th><th>Chofer</th><th>Destino</th><th>Estado</th><th>Acciones</th></tr>
+                            <tr><th class="p-2">Fecha</th><th class="p-2">Vehículo</th><th class="p-2">Chofer</th><th class="p-2">Destino</th><th class="p-2">Estado</th><th class="p-2">Acciones</th></tr>
                         </thead>
                         <tbody id="tablaViajes"></tbody>
                     </table>
@@ -248,7 +329,7 @@
 
                 renderVehiculoSeleccionado();
                 renderViajes(todosLosViajes);
-                renderResumenChoferes(todosLosViajes);
+                renderPanelesVehiculosIndividuales();
             });
         }
 
@@ -298,8 +379,10 @@
                 if (chk) chk.checked = !!(data.checklist && data.checklist[item]);
             });
 
+            renderCombustible(data.combustible || []);
             renderMantenimiento(data.mantenimientos || []);
             renderReparaciones(data.reparaciones || []);
+            calcularGastosTotales(data);
         }
 
         let debounceTimer;
@@ -338,6 +421,188 @@
             `).join('');
         }
 
+        /* COMBUSTIBLE Y CONSUMO */
+        function guardarCombustible(e) {
+            e.preventDefault();
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            if (!data.combustible) data.combustible = [];
+
+            data.combustible.push({
+                fecha: document.getElementById('comb_fecha').value,
+                km: Number(document.getElementById('comb_km').value),
+                litros: Number(document.getElementById('comb_litros').value),
+                costo: Number(document.getElementById('comb_costo').value)
+            });
+
+            data.combustible.sort((a, b) => a.km - b.km);
+
+            db.collection("flota").doc(vehiculoActual).set(data, { merge: true });
+            document.getElementById('formCombustible').reset();
+            document.getElementById('formCombustible').classList.add('hidden');
+            mostrarToast("⛽ Carga registrada");
+        }
+
+        function eliminarCombustible(index) {
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            data.combustible.splice(index, 1);
+            db.collection("flota").doc(vehiculoActual).set(data, { merge: true });
+            mostrarToast("🗑️ Registro eliminado");
+        }
+
+        function renderCombustible(list) {
+            const tbody = document.getElementById('tablaCombustible');
+            if (!list.length) { 
+                tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-400">Sin cargas registradas.</td></tr>'; 
+                return; 
+            }
+
+            let html = '';
+            for (let i = 0; i < list.length; i++) {
+                const actual = list[i];
+                let consumoStr = '-';
+
+                if (i > 0) {
+                    const anterior = list[i - 1];
+                    const kmRecorridos = actual.km - anterior.km;
+                    if (kmRecorridos > 0) {
+                        const consumo = (actual.litros / kmRecorridos) * 100;
+                        consumoStr = `${consumo.toFixed(1)} L/100km`;
+                    }
+                }
+
+                html += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2">${actual.fecha}</td>
+                        <td class="p-2 font-semibold">${actual.km} KM</td>
+                        <td class="p-2 text-orange-600 font-bold">${actual.litros} L</td>
+                        <td class="p-2 text-green-700 font-bold">$${actual.costo}</td>
+                        <td class="p-2 text-blue-700 font-semibold">${consumoStr}</td>
+                        <td class="p-2"><button onclick="eliminarCombustible(${i})" class="text-red-500 font-bold">✕</button></td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+        }
+
+        /* GASTOS Y COSTOS TOTALES */
+        function calcularGastosTotales(data) {
+            const totComb = (data.combustible || []).reduce((sum, item) => sum + (Number(item.costo) || 0), 0);
+            const totRep = (data.reparaciones || []).reduce((sum, item) => sum + (Number(item.costo) || 0), 0);
+            const totGen = totComb + totRep;
+
+            document.getElementById('costoTotalCombustible').innerText = `$${totComb.toLocaleString('es-AR')}`;
+            document.getElementById('costoTotalReparaciones').innerText = `$${totRep.toLocaleString('es-AR')}`;
+            document.getElementById('costoTotalGeneral').innerText = `$${totGen.toLocaleString('es-AR')}`;
+        }
+
+        /* EXPORTACIÓN A PDF RESUMIDO */
+        function exportarReportePDF() {
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            
+            const totComb = (data.combustible || []).reduce((sum, i) => sum + (Number(i.costo) || 0), 0);
+            const totRep = (data.reparaciones || []).reduce((sum, i) => sum + (Number(i.costo) || 0), 0);
+            const totGen = totComb + totRep;
+
+            const contenedor = document.createElement('div');
+            contenedor.className = "p-8 bg-white font-sans text-gray-800 space-y-6";
+            
+            contenedor.innerHTML = `
+                <div style="border-bottom: 2px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 20px;">
+                    <h1 style="font-size: 20px; font-weight: bold; color: #1e3a8a; margin: 0;">LA COSTA VIAJES - REPORTE RESUMIDO</h1>
+                    <p style="font-size: 11px; color: #6b7280; margin-top: 4px;">Vehículo: <strong>${data.patente || ''} - ${data.marca || ''}</strong> | Fecha: ${new Date().toLocaleDateString('es-AR')}</p>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <div style="flex: 1; border: 1px solid #e5e7eb; padding: 10px; border-radius: 6px; background: #f9fafb;">
+                        <p style="font-size: 10px; color: #4b5563; font-weight: bold;">KM ACTUAL</p>
+                        <p style="font-size: 16px; font-weight: bold; color: #1e3a8a;">${data.km || '--'} KM</p>
+                    </div>
+                    <div style="flex: 1; border: 1px solid #fed7aa; padding: 10px; border-radius: 6px; background: #fff7ed;">
+                        <p style="font-size: 10px; color: #c2410c; font-weight: bold;">TOTAL COMBUSTIBLE</p>
+                        <p style="font-size: 16px; font-weight: bold; color: #c2410c;">$${totComb.toLocaleString('es-AR')}</p>
+                    </div>
+                    <div style="flex: 1; border: 1px solid #fca5a5; padding: 10px; border-radius: 6px; background: #fef2f2;">
+                        <p style="font-size: 10px; color: #b91c1c; font-weight: bold;">TOTAL REPARACIONES</p>
+                        <p style="font-size: 16px; font-weight: bold; color: #b91c1c;">$${totRep.toLocaleString('es-AR')}</p>
+                    </div>
+                    <div style="flex: 1; border: 1px solid #a7f3d0; padding: 10px; border-radius: 6px; background: #ecfdf5;">
+                        <p style="font-size: 10px; color: #047857; font-weight: bold;">GASTO TOTAL</p>
+                        <p style="font-size: 16px; font-weight: bold; color: #047857;">$${totGen.toLocaleString('es-AR')}</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <h3 style="font-size: 12px; font-weight: bold; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">📅 Estado de Vencimientos</h3>
+                    <p style="font-size: 11px; margin-top: 6px;">
+                        <strong>Seguro:</strong> ${data.venc_seguro || 'N/A'} | 
+                        <strong>VTV:</strong> ${data.venc_vtv || 'N/A'} | 
+                        <strong>RTO:</strong> ${data.venc_rto || 'N/A'} | 
+                        <strong>Matafuego:</strong> ${data.venc_matafuego || 'N/A'}
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <h3 style="font-size: 12px; font-weight: bold; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">⛽ Cargas de Combustible</h3>
+                    <table style="width: 100%; text-align: left; font-size: 10px; border-collapse: collapse; margin-top: 6px;">
+                        <thead>
+                            <tr style="background: #f3f4f6;">
+                                <th style="padding: 6px; border: 1px solid #e5e7eb;">Fecha</th>
+                                <th style="padding: 6px; border: 1px solid #e5e7eb;">KM</th>
+                                <th style="padding: 6px; border: 1px solid #e5e7eb;">Litros</th>
+                                <th style="padding: 6px; border: 1px solid #e5e7eb;">Costo ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(data.combustible || []).map(c => `
+                                <tr>
+                                    <td style="padding: 6px; border: 1px solid #e5e7eb;">${c.fecha}</td>
+                                    <td style="padding: 6px; border: 1px solid #e5e7eb;">${c.km} KM</td>
+                                    <td style="padding: 6px; border: 1px solid #e5e7eb;">${c.litros} L</td>
+                                    <td style="padding: 6px; border: 1px solid #e5e7eb;">$${Number(c.costo).toLocaleString('es-AR')}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="4" style="padding:6px; text-align:center;">Sin cargas</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <h3 style="font-size: 12px; font-weight: bold; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">🔧 Mantenimientos Realizados</h3>
+                    <table style="width: 100%; text-align: left; font-size: 10px; border-collapse: collapse; margin-top: 6px;">
+                        <thead>
+                            <tr style="background: #f3f4f6;">
+                                <th style="padding: 6px; border: 1px solid #e5e7eb;">Fecha</th>
+                                <th style="padding: 6px; border: 1px solid #e5e7eb;">KM</th>
+                                <th style="padding: 6px; border: 1px solid #e5e7eb;">Trabajo</th>
+                                <th style="padding: 6px; border: 1px solid #e5e7eb;">Próximo KM</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(data.mantenimientos || []).map(m => `
+                                <tr>
+                                    <td style="padding: 6px; border: 1px solid #e5e7eb;">${m.fecha}</td>
+                                    <td style="padding: 6px; border: 1px solid #e5e7eb;">${m.km} KM</td>
+                                    <td style="padding: 6px; border: 1px solid #e5e7eb;">${m.trabajo}</td>
+                                    <td style="padding: 6px; border: 1px solid #e5e7eb;">${m.prox ? m.prox + ' KM' : '-'}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="4" style="padding:6px; text-align:center;">Sin registros</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            const opt = {
+                margin:       0.5,
+                filename:     `Reporte_${data.patente || vehiculoActual}_${new Date().toISOString().slice(0,10)}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(contenedor).save();
+            mostrarToast("📄 Descargando PDF resumido...");
+        }
+
+        /* MANTENIMIENTO */
         function guardarMantenimiento(e) {
             e.preventDefault();
             const data = todosLosVehiculos[vehiculoActual] || {};
@@ -375,6 +640,7 @@
             `).join('');
         }
 
+        /* REPARACIONES */
         function comprimirImagen(file, callback) {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -400,7 +666,7 @@
             const fecha = document.getElementById('rep_fecha').value;
             const km = document.getElementById('rep_km').value;
             const detalle = document.getElementById('rep_detalle').value;
-            const costo = document.getElementById('rep_costo').value;
+            const costo = Number(document.getElementById('rep_costo').value) || 0;
             const fotoInput = document.getElementById('rep_foto');
 
             const enviar = (foto) => {
@@ -442,6 +708,7 @@
             `).join('');
         }
 
+        /* VIAJES Y CHOFERES */
         async function guardarViaje(e) {
             e.preventDefault();
             const vehiculoSeleccionado = document.getElementById('vj_vehiculo').value;
@@ -513,51 +780,62 @@
             `).join('');
         }
 
-        function renderResumenChoferes(todosLosViajes) {
-            const tbody = document.getElementById('tablaResumenChoferes');
-            if (!todosLosViajes.length) {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros de viajes.</td></tr>';
-                return;
-            }
+        /* RENDER DE PANELES DE VEHÍCULOS INDIVIDUALES */
+        function renderPanelesVehiculosIndividuales() {
+            const IDs = ['auto1', 'auto2', 'camioneta1', 'camioneta2'];
 
-            const resumen = {};
-            todosLosViajes.forEach(v => {
-                if (!v.fecha || !v.chofer) return;
-                const mesKey = v.fecha.substring(0, 7);
-                if (!resumen[mesKey]) resumen[mesKey] = {};
-                if (!resumen[mesKey][v.chofer]) resumen[mesKey][v.chofer] = [];
-                resumen[mesKey][v.chofer].push(v);
-            });
+            IDs.forEach(id => {
+                const panel = document.getElementById(`panel_${id}`);
+                if (!panel) return;
 
-            let html = '';
-            const mesesOrdenados = Object.keys(resumen).sort().reverse();
+                const vData = todosLosVehiculos[id];
+                const viajes = (vData && vData.viajes) ? vData.viajes : [];
 
-            mesesOrdenados.forEach(mes => {
-                const choferes = resumen[mes];
-                for (const chofer in choferes) {
-                    const lista = choferes[chofer];
+                if (!viajes.length) {
+                    panel.innerHTML = `<p class="text-gray-400 italic py-2">Sin viajes registrados para este vehículo.</p>`;
+                    return;
+                }
+
+                // Agrupar viajes por chofer
+                const choferesMap = {};
+                viajes.forEach(v => {
+                    if (!v.chofer) return;
+                    if (!choferesMap[v.chofer]) choferesMap[v.chofer] = [];
+                    choferesMap[v.chofer].push(v);
+                });
+
+                let html = '<div class="space-y-3">';
+                for (const chofer in choferesMap) {
+                    const lista = choferesMap[chofer];
                     const realizados = lista.filter(x => x.estado === 'Realizado').length;
-                    const detalles = lista.map(x => `
-                        <span class="inline-block bg-gray-100 rounded px-1.5 py-0.5 text-[10px] mr-1 mb-1 border border-gray-200">
-                            📅 ${x.fecha.split('-').slice(1).reverse().join('/')} - 🚗 ${x.vehiculoNombre} (${x.estado})
-                        </span>
-                    `).join('');
 
                     html += `
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="p-2 font-bold text-gray-700">${mes}</td>
-                            <td class="p-2 font-semibold text-indigo-900">${chofer}</td>
-                            <td class="p-2">
-                                <span class="font-bold text-indigo-600 text-sm">${lista.length}</span> 
-                                <span class="text-xs text-gray-500">(${realizados} hechos)</span>
-                            </td>
-                            <td class="p-2">${detalles}</td>
-                        </tr>
+                        <div class="bg-white p-2.5 rounded-lg border shadow-sm">
+                            <div class="flex justify-between items-center mb-1.5 border-b pb-1">
+                                <span class="font-bold text-gray-800 flex items-center gap-1">👤 ${chofer}</span>
+                                <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                    ${lista.length} Viajes (${realizados} OK)
+                                </span>
+                            </div>
+                            <div class="space-y-1">
+                                ${lista.map(item => `
+                                    <div class="flex justify-between items-center text-[11px] bg-gray-50 p-1.5 rounded border border-gray-100">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-semibold text-gray-700">📅 ${item.fecha}</span>
+                                            <span class="text-gray-600">📍 ${item.destino}</span>
+                                        </div>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${item.estado === 'Realizado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
+                                            ${item.estado}
+                                        </span>
+                                    </div>
+                                me`).join('')}
+                            </div>
+                        </div>
                     `;
                 }
+                html += '</div>';
+                panel.innerHTML = html;
             });
-
-            tbody.innerHTML = html || '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros.</td></tr>';
         }
     </script>
 </body>
