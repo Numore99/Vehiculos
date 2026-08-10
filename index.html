@@ -185,7 +185,7 @@
             </div>
 
             <!-- Contenedor Acordeón de Choferes -->
-            <div id="gridChoferesMensual" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div id="gridChoferesMensual" class="grid grid-cols-1 gap-3">
                 <!-- Tarjetas dinámicas -->
             </div>
         </section>
@@ -377,9 +377,9 @@
             if (!viajesList.length) {
                 tbodyViajes.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400">Sin viajes registrados para este vehículo.</td></tr>';
             } else {
-                tbodyViajes.innerHTML = viajesList.slice().reverse().map(v => `
+                tbodyViajes.innerHTML = viajesList.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).map(v => `
                     <tr class="border-b hover:bg-gray-50">
-                        <td class="p-2.5 font-semibold">${v.fecha}</td>
+                        <td class="p-2.5 font-semibold">${formatearFecha(v.fecha)}</td>
                         <td class="p-2.5 font-bold text-slate-700">${v.chofer}</td>
                         <td class="p-2.5">${v.destino}</td>
                         <td class="p-2.5">
@@ -390,6 +390,13 @@
                     </tr>
                 `).join('');
             }
+        }
+
+        function formatearFecha(fecha) {
+            if (!fecha) return 'Sin fecha';
+            const partes = fecha.split('-');
+            if (partes.length !== 3) return fecha;
+            return `${partes[2]}/${partes[1]}/${partes[0]}`;
         }
 
         function renderChoferesMensual() {
@@ -430,6 +437,10 @@
                 choferesMap[chofer].push(v);
             });
 
+            Object.values(choferesMap).forEach(lista => {
+                lista.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+            });
+
             const grid = document.getElementById('gridChoferesMensual');
             if (Object.keys(choferesMap).length === 0) {
                 grid.innerHTML = `<div class="col-span-full p-4 text-center text-gray-400 text-xs bg-slate-50 rounded-xl border border-dashed border-gray-200">Sin viajes registrados para el mes seleccionado.</div>`;
@@ -438,7 +449,8 @@
 
             let html = '';
             let index = 0;
-            for (const chofer in choferesMap) {
+            const choferesOrdenados = Object.keys(choferesMap).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+            for (const chofer of choferesOrdenados) {
                 const listaViajes = choferesMap[chofer];
                 const cardId = `chofer_card_${index++}`;
 
@@ -455,17 +467,29 @@
                             </div>
                         </div>
 
-                        <div id="${cardId}" class="chofer-detalle hidden p-3 border-t border-slate-100 bg-white space-y-2 text-xs">
-                            ${listaViajes.map(v => `
-                                <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 flex flex-col gap-1">
-                                    <div class="flex justify-between items-center font-bold text-slate-700">
-                                        <span>📅 ${v.fecha}</span>
-                                        <span class="px-1.5 py-0.5 rounded text-[9px] ${v.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${v.estado || 'Pendiente'}</span>
-                                    </div>
-                                    <div class="text-[11px] text-blue-700 font-semibold">🚘 ${v.vehiculoNombre}</div>
-                                    <div class="text-[11px] text-gray-500">📍 ${v.destino || 'Sin destino'}</div>
-                                </div>
-                            `).join('')}
+                        <div id="${cardId}" class="chofer-detalle hidden border-t border-slate-200 bg-white text-xs overflow-x-auto">
+                            <table class="w-full min-w-[470px] text-left">
+                                <thead class="bg-slate-100 text-[9px] uppercase tracking-wide text-slate-500">
+                                    <tr>
+                                        <th class="px-3 py-2 font-bold">Fecha</th>
+                                        <th class="px-3 py-2 font-bold">Vehículo</th>
+                                        <th class="px-3 py-2 font-bold">Destino</th>
+                                        <th class="px-3 py-2 font-bold text-right">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    ${listaViajes.map(v => `
+                                        <tr class="hover:bg-blue-50/50">
+                                            <td class="px-3 py-2 font-bold text-slate-700 whitespace-nowrap">${formatearFecha(v.fecha)}</td>
+                                            <td class="px-3 py-2 text-blue-700 font-semibold whitespace-nowrap">${v.vehiculoNombre}</td>
+                                            <td class="px-3 py-2 text-slate-600">${v.destino || 'Sin destino'}</td>
+                                            <td class="px-3 py-2 text-right">
+                                                <span class="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${v.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${v.estado || 'Pendiente'}</span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 `;

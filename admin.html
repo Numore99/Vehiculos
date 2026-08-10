@@ -754,6 +754,13 @@
         }
 
         /* RENDER DE TOTAL DE VIAJES POR CHOFER (MENSUAL CON 12 MESES FUTUROS Y UNIFICADO) */
+        function formatearFecha(fecha) {
+            if (!fecha) return 'Sin fecha';
+            const partes = fecha.split('-');
+            if (partes.length !== 3) return fecha;
+            return `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+
         function renderPanelesVehiculosIndividuales() {
             const panel = document.getElementById('panel_total_choferes');
             if (!panel) return;
@@ -836,6 +843,10 @@
                 choferesMap[choferKey].push(v);
             });
 
+            Object.values(choferesMap).forEach(lista => {
+                lista.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+            });
+
             const choferesNombres = Object.keys(choferesMap).sort();
 
             if (!choferesNombres.length) {
@@ -858,19 +869,29 @@
                                     <span class="text-[10px] text-slate-400 group-open:rotate-180 transition-transform">▼</span>
                                 </div>
                             </summary>
-                            <div class="p-2.5 bg-white space-y-1.5 border-t border-slate-200">
-                                ${listaChofer.map(item => `
-                                    <div class="flex justify-between items-center text-[11px] bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                        <div class="flex items-center gap-2">
-                                            <span class="font-bold text-slate-700">📅 ${item.fecha}</span>
-                                            <span class="text-slate-600">📍 ${item.destino}</span>
-                                            <span class="text-slate-500 font-medium">(${item.vehiculoNombre || item.vehiculoId})</span>
-                                        </div>
-                                        <span class="px-2 py-0.5 rounded text-[9px] font-bold ${item.estado === 'Realizado' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
-                                            ${item.estado}
-                                        </span>
-                                    </div>
-                                `).join('')}
+                            <div class="bg-white border-t border-slate-200 overflow-x-auto">
+                                <table class="w-full min-w-[520px] text-left text-[11px]">
+                                    <thead class="bg-slate-100 text-[9px] uppercase tracking-wide text-slate-500">
+                                        <tr>
+                                            <th class="px-3 py-2">Fecha</th>
+                                            <th class="px-3 py-2">Vehículo</th>
+                                            <th class="px-3 py-2">Destino</th>
+                                            <th class="px-3 py-2 text-right">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        ${listaChofer.map(item => `
+                                            <tr class="hover:bg-blue-50/50">
+                                                <td class="px-3 py-2 font-bold text-slate-700 whitespace-nowrap">${formatearFecha(item.fecha)}</td>
+                                                <td class="px-3 py-2 text-blue-700 font-semibold whitespace-nowrap">${item.vehiculoNombre || item.vehiculoId}</td>
+                                                <td class="px-3 py-2 text-slate-600">${item.destino || 'Sin destino'}</td>
+                                                <td class="px-3 py-2 text-right">
+                                                    <span class="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${item.estado === 'Realizado' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${item.estado || 'Pendiente'}</span>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
                             </div>
                         </details>
                     `;
