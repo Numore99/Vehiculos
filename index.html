@@ -52,7 +52,7 @@
         <div id="areaImpresion" class="space-y-6 transition-all duration-500 rounded-2xl p-2">
 
             <!-- Tarjetas Resumen de Datos y Finanzas -->
-            <section class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 
                 <!-- Recuadro Estilo Patente -->
                 <div id="cardVehiculo" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between transition-all duration-300">
@@ -71,11 +71,6 @@
                         <p id="lbl_km" class="text-sm font-extrabold text-blue-600 mt-0.5">-- KM</p>
                     </div>
                 </div>
-
-                <div class="bg-orange-50/60 p-4 rounded-xl shadow-sm border border-orange-200 flex flex-col justify-between">
-                    <span class="text-xs font-bold text-orange-600">TOTAL COMBUSTIBLE</span>
-                    <p id="costoTotalCombustible" class="text-xl font-black text-orange-700">$0</p>
-                </div>
                 <div class="bg-red-50/60 p-4 rounded-xl shadow-sm border border-red-200 flex flex-col justify-between">
                     <span class="text-xs font-bold text-red-600">TOTAL REPARACIONES</span>
                     <p id="costoTotalReparaciones" class="text-xl font-black text-red-700">$0</p>
@@ -83,6 +78,19 @@
                 <div class="bg-emerald-50/60 p-4 rounded-xl shadow-sm border border-emerald-200 flex flex-col justify-between">
                     <span class="text-xs font-bold text-emerald-600">GASTO TOTAL ACUMULADO</span>
                     <p id="costoTotalGeneral" class="text-2xl font-black text-emerald-800">$0</p>
+                </div>
+            </section>
+
+            <!-- Documentación del vehículo -->
+            <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-gray-700 flex items-center gap-2">📎 Papeles del Vehículo</h2>
+                        <p id="documentoVehiculoNombre" class="text-xs text-gray-500 mt-1">No hay documentación cargada.</p>
+                    </div>
+                    <a id="documentoVehiculoLink" href="#" target="_blank" rel="noopener" class="hidden bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold py-2.5 px-4 rounded-lg shadow text-center">
+                        📄 Ver PDF
+                    </a>
                 </div>
             </section>
 
@@ -126,27 +134,8 @@
                 </div>
             </section>
 
-            <!-- Historial de Combustible y Mantenimientos -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-                    <h2 class="text-base font-bold text-gray-700 mb-3 flex items-center gap-2">⛽ Últimas Cargas de Combustible</h2>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-orange-50 border-b">
-                                <tr>
-                                    <th class="p-2">Fecha</th>
-                                    <th class="p-2">KM</th>
-                                    <th class="p-2">Litros</th>
-                                    <th class="p-2">Costo</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tablaCombustible">
-                                <tr><td colspan="4" class="p-3 text-center text-gray-400">Sin registros.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-
+            <!-- Mantenimientos -->
+            <div class="grid grid-cols-1 gap-6">
                 <section class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
                     <h2 class="text-base font-bold text-gray-700 mb-3 flex items-center gap-2">🔧 Mantenimientos Realizados</h2>
                     <div class="overflow-x-auto">
@@ -305,13 +294,11 @@
             document.getElementById('lbl_modelo').innerText = data.marca || 'Vehículo sin especificar';
             document.getElementById('lbl_km').innerText = `${data.km ? Number(data.km).toLocaleString('es-AR') : '0'} KM`;
 
-            const totComb = (data.combustible || []).reduce((sum, item) => sum + (Number(item.costo) || 0), 0);
             const totRep = (data.reparaciones || []).reduce((sum, item) => sum + (Number(item.costo) || 0), 0);
-            const totGen = totComb + totRep;
 
-            document.getElementById('costoTotalCombustible').innerText = `$${totComb.toLocaleString('es-AR')}`;
             document.getElementById('costoTotalReparaciones').innerText = `$${totRep.toLocaleString('es-AR')}`;
-            document.getElementById('costoTotalGeneral').innerText = `$${totGen.toLocaleString('es-AR')}`;
+            document.getElementById('costoTotalGeneral').innerText = `$${totRep.toLocaleString('es-AR')}`;
+            renderDocumentoVehiculo(data);
 
             const vencimientos = [
                 { label: '🛡️ Seguro', val: data.venc_seguro },
@@ -340,21 +327,6 @@
                     </div>
                 `;
             }).join('');
-
-            const combList = data.combustible || [];
-            const tbodyComb = document.getElementById('tablaCombustible');
-            if (!combList.length) {
-                tbodyComb.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Sin cargas registradas.</td></tr>';
-            } else {
-                tbodyComb.innerHTML = combList.slice(-5).reverse().map(c => `
-                    <tr class="border-b">
-                        <td class="p-2">${c.fecha}</td>
-                        <td class="p-2 font-semibold">${c.km} KM</td>
-                        <td class="p-2 text-orange-600 font-bold">${c.litros} L</td>
-                        <td class="p-2 text-emerald-700 font-bold">$${Number(c.costo).toLocaleString('es-AR')}</td>
-                    </tr>
-                `).join('');
-            }
 
             const mantList = data.mantenimientos || [];
             const tbodyMant = document.getElementById('tablaMantenimiento');
@@ -389,6 +361,22 @@
                         </td>
                     </tr>
                 `).join('');
+            }
+        }
+
+        function renderDocumentoVehiculo(data) {
+            const nombre = document.getElementById('documentoVehiculoNombre');
+            const link = document.getElementById('documentoVehiculoLink');
+            const doc = data.documentoPdf;
+
+            if (doc && doc.url) {
+                nombre.textContent = doc.nombre || 'Documentación del vehículo';
+                link.href = doc.url;
+                link.classList.remove('hidden');
+            } else {
+                nombre.textContent = 'No hay documentación cargada.';
+                link.href = '#';
+                link.classList.add('hidden');
             }
         }
 
@@ -535,7 +523,6 @@
                 const viajes = vData.viajes || [];
                 const realizados = viajes.filter(x => x.estado === 'Realizado').length;
                 const pendientes = viajes.filter(x => x.estado === 'Pendiente').length;
-                const totComb = (vData.combustible || []).reduce((sum, i) => sum + (Number(i.costo) || 0), 0);
                 const totRep = (vData.reparaciones || []).reduce((sum, i) => sum + (Number(i.costo) || 0), 0);
                 const esSeleccionado = (id === vehiculoActual);
 
@@ -545,7 +532,7 @@
                             <h3 class="font-bold text-slate-900 text-sm mb-2">${nombresFlota[id]}</h3>
                             <div class="space-y-1 text-xs text-gray-600 mb-3">
                                 <p>📍 Total Viajes: <strong class="text-slate-800">${viajes.length}</strong> (${realizados} OK / ${pendientes} Pend.)</p>
-                                <p>💰 Gastos Flota: <strong class="text-emerald-700">$${(totComb + totRep).toLocaleString('es-AR')}</strong></p>
+                                <p>💰 Gastos Flota: <strong class="text-emerald-700">$${totRep.toLocaleString('es-AR')}</strong></p>
                             </div>
                         </div>
                         <button onclick="verDetalleVehiculo('${id}')" class="w-full ${esSeleccionado ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-800 hover:bg-slate-900'} text-white text-xs font-bold py-1.5 rounded transition">
