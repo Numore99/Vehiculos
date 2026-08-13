@@ -10,12 +10,12 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
-    <!-- Librería para Exportación a PDF Limpio -->
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans pb-12">
 
-    <!-- Modal de Autenticación por PIN -->
+
     <div id="pinModal" class="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50 p-4">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm text-center">
             <span class="text-4xl mb-2 block">🔒</span>
@@ -209,16 +209,34 @@
     </main>
 
     <script>
-        const PIN_CORRECTO = "2305";
+        const PIN_HASH = "9a5a48758da347f33bd37064cfbd05442ef005c85ae0ea4614740d5597316ed3";
 
-        function validarPin() {
+        async function validarPin() {
             const input = document.getElementById('pinInput').value;
-            if (input === PIN_CORRECTO) {
+            const bytes = new TextEncoder().encode(input);
+            const digest = await crypto.subtle.digest('SHA-256', bytes);
+            const hash = Array.from(new Uint8Array(digest))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+
+            if (hash === PIN_HASH) {
                 document.getElementById('pinModal').classList.add('hidden');
+                document.getElementById('pinInput').value = '';
+                document.getElementById('pinError').classList.add('hidden');
             } else {
                 document.getElementById('pinError').classList.remove('hidden');
+                document.getElementById('pinInput').value = '';
             }
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const pinInput = document.getElementById('pinInput');
+            if (pinInput) {
+                pinInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') validarPin();
+                });
+            }
+        });
 
         function mostrarToast(mensaje) {
             const toast = document.getElementById('toast');
@@ -227,6 +245,7 @@
             setTimeout(() => toast.classList.add('hidden'), 2500);
         }
 
+        // Configuración pública requerida por Firebase Web.
         const firebaseConfig = {
             apiKey: "AIzaSyA7bzz1r--DrVexrKk_WKPU46UNgZzCn_0",
             authDomain: "la-costa-viajes.firebaseapp.com",
@@ -496,18 +515,33 @@
         }
 
 
-        /* DOCUMENTACIÓN PDF DEL VEHÍCULO */
+        /* DOCUMENTACIÓN PDF DEL VEHÍCULO
+           Se guarda en Firestore en bloques para no depender de Firebase Storage.
+           Cada bloque queda debajo del vehículo seleccionado. */
+        const PDF_CHUNK_SIZE = 700000; // caracteres por documento, debajo del límite de Firestore
+        const PDF_MAX_SIZE = 12 * 1024 * 1024; // 12 MB
+
         function actualizarDocumentoVehiculo(data) {
             const cont = document.getElementById('estadoDocumentoVehiculo');
             if (!cont) return;
+
             const doc = data.documentoPdf;
-            if (doc && doc.url) {
+            if (doc && (doc.url || doc.storage === 'firestore')) {
+                const fecha = doc.actualizado
+                    ? new Date(doc.actualizado).toLocaleString('es-AR')
+                    : '';
+
                 cont.innerHTML = `
                     <div class="bg-cyan-50 border border-cyan-200 rounded-lg p-3">
-                        <p class="font-bold text-cyan-900 mb-2">📄 ${doc.nombre || 'Documentación.pdf'}</p>
+                        <p class="font-bold text-cyan-900 mb-1">📄 ${doc.nombre || 'Documentación.pdf'}</p>
+                        ${fecha ? `<p class="text-[10px] text-cyan-700 mb-2">Actualizado: ${fecha}</p>` : ''}
                         <div class="flex gap-2">
-                            <a href="${doc.url}" target="_blank" rel="noopener" class="flex-1 text-center bg-cyan-700 text-white font-bold py-2 px-3 rounded">Ver PDF</a>
-                            <button type="button" onclick="eliminarDocumentoVehiculo()" class="bg-red-100 text-red-700 font-bold py-2 px-3 rounded">Eliminar</button>
+                            <button type="button" onclick="abrirDocumentoVehiculoAdmin()" class="flex-1 text-center bg-cyan-700 hover:bg-cyan-800 text-white font-bold py-2 px-3 rounded">
+                                Ver / Descargar PDF
+                            </button>
+                            <button type="button" onclick="eliminarDocumentoVehiculo()" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2 px-3 rounded">
+                                Eliminar
+                            </button>
                         </div>
                     </div>`;
             } else {
@@ -515,40 +549,165 @@
             }
         }
 
+        function leerArchivoComoBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const resultado = String(reader.result || '');
+                    const base64 = resultado.includes(',') ? resultado.split(',')[1] : resultado;
+                    resolve(base64);
+                };
+                reader.onerror = () => reject(reader.error || new Error('No se pudo leer el PDF'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function borrarChunksDocumento(vehiculoId) {
+            const col = db.collection("flota").doc(vehiculoId).collection("documentoPdfChunks");
+            const snap = await col.get();
+            if (snap.empty) return;
+
+            let batch = db.batch();
+            let ops = 0;
+
+            for (const d of snap.docs) {
+                batch.delete(d.ref);
+                ops++;
+                if (ops === 400) {
+                    await batch.commit();
+                    batch = db.batch();
+                    ops = 0;
+                }
+            }
+
+            if (ops > 0) await batch.commit();
+        }
+
         async function subirDocumentoVehiculo() {
             const input = document.getElementById('vehiculo_pdf');
             const file = input.files && input.files[0];
+
             if (!file) {
                 mostrarToast("Seleccioná un archivo PDF");
                 return;
             }
+
             if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
                 mostrarToast("El archivo debe ser PDF");
                 return;
             }
-            if (file.size > 25 * 1024 * 1024) {
-                mostrarToast("El PDF supera el límite de 25 MB");
+
+            if (file.size > PDF_MAX_SIZE) {
+                mostrarToast("El PDF supera el límite de 12 MB");
                 return;
             }
 
+            const btn = document.querySelector('button[onclick="subirDocumentoVehiculo()"]');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "Subiendo...";
+                btn.classList.add("opacity-60", "cursor-wait");
+            }
+
             try {
-                mostrarToast("📤 Subiendo PDF...");
-                const ref = storage.ref().child(`documentos_vehiculos/${vehiculoActual}/documentacion.pdf`);
-                await ref.put(file, { contentType: 'application/pdf' });
-                const url = await ref.getDownloadURL();
+                mostrarToast("📤 Preparando PDF...");
+                const base64 = await leerArchivoComoBase64(file);
+                const chunks = [];
+
+                for (let i = 0; i < base64.length; i += PDF_CHUNK_SIZE) {
+                    chunks.push(base64.slice(i, i + PDF_CHUNK_SIZE));
+                }
+
+                // Limpia primero cualquier PDF anterior de este vehículo.
+                await borrarChunksDocumento(vehiculoActual);
+
+                const vehRef = db.collection("flota").doc(vehiculoActual);
+                const chunksRef = vehRef.collection("documentoPdfChunks");
+
+                for (let i = 0; i < chunks.length; i++) {
+                    mostrarToast(`📤 Subiendo PDF ${i + 1}/${chunks.length}...`);
+                    await chunksRef.doc(String(i).padStart(4, '0')).set({
+                        indice: i,
+                        data: chunks[i]
+                    });
+                }
 
                 const documentoPdf = {
-                    url,
                     nombre: file.name,
+                    tipo: 'application/pdf',
+                    tamanio: file.size,
+                    storage: 'firestore',
+                    chunks: chunks.length,
                     actualizado: new Date().toISOString()
                 };
 
-                await db.collection("flota").doc(vehiculoActual).set({ documentoPdf }, { merge: true });
+                await vehRef.set({ documentoPdf }, { merge: true });
                 input.value = '';
-                mostrarToast("✅ PDF guardado");
+                mostrarToast("✅ PDF guardado correctamente");
             } catch (error) {
+                console.error("Error al subir PDF:", error);
+                mostrarToast("❌ Error: " + (error.message || "No se pudo subir el PDF"));
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = "Subir / Reemplazar PDF";
+                    btn.classList.remove("opacity-60", "cursor-wait");
+                }
+            }
+        }
+
+        async function obtenerBlobDocumentoVehiculo(vehiculoId, docMeta) {
+            // Compatibilidad con PDFs viejos guardados en Storage.
+            if (docMeta && docMeta.url) {
+                const respuesta = await fetch(docMeta.url);
+                if (!respuesta.ok) throw new Error("No se pudo descargar el PDF");
+                return await respuesta.blob();
+            }
+
+            if (!docMeta || docMeta.storage !== 'firestore') {
+                throw new Error("No hay documentación disponible");
+            }
+
+            const snap = await db.collection("flota")
+                .doc(vehiculoId)
+                .collection("documentoPdfChunks")
+                .orderBy("indice")
+                .get();
+
+            if (snap.empty) throw new Error("El PDF no tiene datos guardados");
+
+            let base64 = "";
+            snap.forEach(d => {
+                base64 += d.data().data || "";
+            });
+
+            const binario = atob(base64);
+            const bytes = new Uint8Array(binario.length);
+            for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+
+            return new Blob([bytes], { type: 'application/pdf' });
+        }
+
+        async function abrirDocumentoVehiculoAdmin() {
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            const doc = data.documentoPdf;
+            if (!doc) return;
+
+            const nueva = window.open('', '_blank');
+
+            try {
+                mostrarToast("📄 Abriendo PDF...");
+                const blob = await obtenerBlobDocumentoVehiculo(vehiculoActual, doc);
+                const url = URL.createObjectURL(blob);
+
+                if (nueva) nueva.location.href = url;
+                else window.location.href = url;
+
+                setTimeout(() => URL.revokeObjectURL(url), 120000);
+            } catch (error) {
+                if (nueva) nueva.close();
                 console.error(error);
-                mostrarToast("❌ No se pudo subir el PDF");
+                mostrarToast("❌ " + (error.message || "No se pudo abrir el PDF"));
             }
         }
 
@@ -558,15 +717,28 @@
             if (!confirm("¿Eliminar el PDF de este vehículo?")) return;
 
             try {
-                const ref = storage.ref().child(`documentos_vehiculos/${vehiculoActual}/documentacion.pdf`);
-                try { await ref.delete(); } catch (e) { console.warn("El archivo ya no estaba en Storage", e); }
+                const doc = data.documentoPdf;
+
+                if (doc.storage === 'firestore') {
+                    await borrarChunksDocumento(vehiculoActual);
+                } else if (doc.url && typeof storage !== 'undefined') {
+                    // Compatibilidad con un PDF anterior almacenado en Storage.
+                    try {
+                        const ref = storage.ref().child(`documentos_vehiculos/${vehiculoActual}/documentacion.pdf`);
+                        await ref.delete();
+                    } catch (e) {
+                        console.warn("No se pudo borrar el archivo anterior de Storage:", e);
+                    }
+                }
+
                 await db.collection("flota").doc(vehiculoActual).set({
                     documentoPdf: firebase.firestore.FieldValue.delete()
                 }, { merge: true });
+
                 mostrarToast("🗑️ PDF eliminado");
             } catch (error) {
                 console.error(error);
-                mostrarToast("❌ No se pudo eliminar el PDF");
+                mostrarToast("❌ " + (error.message || "No se pudo eliminar el PDF"));
             }
         }
 

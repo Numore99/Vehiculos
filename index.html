@@ -9,7 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- Librería para Exportación a PDF -->
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans pb-12">
@@ -88,7 +88,7 @@
                         <h2 class="text-base font-bold text-gray-700 flex items-center gap-2">📎 Papeles del Vehículo</h2>
                         <p id="documentoVehiculoNombre" class="text-xs text-gray-500 mt-1">No hay documentación cargada.</p>
                     </div>
-                    <a id="documentoVehiculoLink" href="#" target="_blank" rel="noopener" class="hidden bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold py-2.5 px-4 rounded-lg shadow text-center">
+                    <a id="documentoVehiculoLink" href="#" href="#" target="_blank" rel="noopener" class="hidden bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold py-2.5 px-4 rounded-lg shadow text-center">
                         📄 Ver PDF
                     </a>
                 </div>
@@ -199,6 +199,7 @@
             setTimeout(() => toast.classList.add('hidden'), 3000);
         }
 
+        // Configuración pública requerida por Firebase Web.
         const firebaseConfig = {
             apiKey: "AIzaSyA7bzz1r--DrVexrKk_WKPU46UNgZzCn_0",
             authDomain: "la-costa-viajes.firebaseapp.com",
@@ -369,14 +370,73 @@
             const link = document.getElementById('documentoVehiculoLink');
             const doc = data.documentoPdf;
 
-            if (doc && doc.url) {
+            if (doc && (doc.url || doc.storage === 'firestore')) {
                 nombre.textContent = doc.nombre || 'Documentación del vehículo';
-                link.href = doc.url;
+                link.removeAttribute('href');
+                link.onclick = (event) => {
+                    event.preventDefault();
+                    abrirDocumentoVehiculoConsulta();
+                };
                 link.classList.remove('hidden');
             } else {
                 nombre.textContent = 'No hay documentación cargada.';
-                link.href = '#';
+                link.removeAttribute('href');
+                link.onclick = null;
                 link.classList.add('hidden');
+            }
+        }
+
+        async function obtenerBlobDocumentoConsulta(vehiculoId, docMeta) {
+            if (docMeta && docMeta.url) {
+                const respuesta = await fetch(docMeta.url);
+                if (!respuesta.ok) throw new Error("No se pudo descargar el PDF");
+                return await respuesta.blob();
+            }
+
+            if (!docMeta || docMeta.storage !== 'firestore') {
+                throw new Error("No hay documentación disponible");
+            }
+
+            const snap = await db.collection("flota")
+                .doc(vehiculoId)
+                .collection("documentoPdfChunks")
+                .orderBy("indice")
+                .get();
+
+            if (snap.empty) throw new Error("El PDF no tiene datos guardados");
+
+            let base64 = "";
+            snap.forEach(d => {
+                base64 += d.data().data || "";
+            });
+
+            const binario = atob(base64);
+            const bytes = new Uint8Array(binario.length);
+            for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+
+            return new Blob([bytes], { type: 'application/pdf' });
+        }
+
+        async function abrirDocumentoVehiculoConsulta() {
+            const data = todosLosVehiculos[vehiculoActual] || {};
+            const doc = data.documentoPdf;
+            if (!doc) return;
+
+            const nueva = window.open('', '_blank');
+
+            try {
+                mostrarToast("📄 Abriendo documentación...");
+                const blob = await obtenerBlobDocumentoConsulta(vehiculoActual, doc);
+                const url = URL.createObjectURL(blob);
+
+                if (nueva) nueva.location.href = url;
+                else window.location.href = url;
+
+                setTimeout(() => URL.revokeObjectURL(url), 120000);
+            } catch (error) {
+                if (nueva) nueva.close();
+                console.error(error);
+                mostrarToast("❌ " + (error.message || "No se pudo abrir el PDF"));
             }
         }
 
