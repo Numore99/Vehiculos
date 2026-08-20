@@ -124,11 +124,12 @@
                                 <th class="p-2.5">Fecha</th>
                                 <th class="p-2.5">Chofer</th>
                                 <th class="p-2.5">Destino / Ruta</th>
+                                <th class="p-2.5">Dinero de viaje</th>
                                 <th class="p-2.5">Estado</th>
                             </tr>
                         </thead>
                         <tbody id="tablaViajesVehiculo">
-                            <tr><td colspan="4" class="p-4 text-center text-gray-400">Cargando viajes...</td></tr>
+                            <tr><td colspan="5" class="p-4 text-center text-gray-400">Cargando viajes...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -348,13 +349,14 @@
             document.getElementById('totalViajesBadge').innerText = `${viajesList.length} viajes registrados`;
             const tbodyViajes = document.getElementById('tablaViajesVehiculo');
             if (!viajesList.length) {
-                tbodyViajes.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400">Sin viajes registrados para este vehículo.</td></tr>';
+                tbodyViajes.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Sin viajes registrados para este vehículo.</td></tr>';
             } else {
                 tbodyViajes.innerHTML = viajesList.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).map(v => `
                     <tr class="border-b hover:bg-gray-50">
                         <td class="p-2.5 font-semibold">${formatearFecha(v.fecha)}</td>
                         <td class="p-2.5 font-bold text-slate-700">${v.chofer}</td>
                         <td class="p-2.5">${v.destino}</td>
+                        <td class="p-2.5 font-bold text-emerald-700 whitespace-nowrap">${formatearDinero(v.dineroViaje)}</td>
                         <td class="p-2.5">
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold ${v.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
                                 ${v.estado}
@@ -447,6 +449,11 @@
             return `${partes[2]}/${partes[1]}/${partes[0]}`;
         }
 
+        function formatearDinero(monto) {
+            const valor = Number(monto);
+            return Number.isFinite(valor) ? `$${valor.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : '—';
+        }
+
         function renderChoferesMensual() {
             const selectMes = document.getElementById('mesChoferSelect');
             if (!selectMes) return;
@@ -522,6 +529,7 @@
                                         <th class="px-3 py-2 font-bold">Fecha</th>
                                         <th class="px-3 py-2 font-bold">Vehículo</th>
                                         <th class="px-3 py-2 font-bold">Destino</th>
+                                        <th class="px-3 py-2 font-bold text-right">Dinero de viaje</th>
                                         <th class="px-3 py-2 font-bold text-right">Estado</th>
                                     </tr>
                                 </thead>
@@ -531,6 +539,7 @@
                                             <td class="px-3 py-2 font-bold text-slate-700 whitespace-nowrap">${formatearFecha(v.fecha)}</td>
                                             <td class="px-3 py-2 text-blue-700 font-semibold whitespace-nowrap">${v.vehiculoNombre}</td>
                                             <td class="px-3 py-2 text-slate-600">${v.destino || 'Sin destino'}</td>
+                                            <td class="px-3 py-2 text-right font-bold text-emerald-700 whitespace-nowrap">${formatearDinero(v.dineroViaje)}</td>
                                             <td class="px-3 py-2 text-right">
                                                 <span class="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${v.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${v.estado || 'Pendiente'}</span>
                                             </td>

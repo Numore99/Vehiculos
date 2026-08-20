@@ -179,7 +179,7 @@
             <section class="bg-white p-5 rounded-xl shadow-md border-t-4 border-purple-600">
                 <h2 class="text-lg font-bold text-gray-700 mb-3">🚌 Agenda y Control de Viajes</h2>
                 <form id="formViaje" onsubmit="guardarViaje(event)" class="bg-purple-50 p-3 rounded-lg border mb-4 space-y-2 text-xs">
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
                         <input type="date" id="vj_fecha" required class="p-2 border rounded">
                         <select id="vj_vehiculo" class="p-2 border rounded font-semibold text-gray-700">
                             <option value="auto1">ETIOS AG00GDV</option>
@@ -189,6 +189,7 @@
                         </select>
                         <input type="text" id="vj_chofer" placeholder="Nombre Chofer" required class="p-2 border rounded">
                         <input type="text" id="vj_destino" placeholder="Destino / Ruta" required class="p-2 border rounded">
+                        <input type="number" id="vj_dinero" placeholder="Dinero de viaje ($)" min="0" step="0.01" required class="p-2 border rounded font-semibold text-emerald-700">
                         <select id="vj_estado" class="p-2 border rounded">
                             <option value="Pendiente">⏳ Pendiente</option>
                             <option value="Realizado">✅ Realizado</option>
@@ -199,7 +200,7 @@
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-purple-100 border-b">
-                            <tr><th class="p-2">Fecha</th><th class="p-2">Vehículo</th><th class="p-2">Chofer</th><th class="p-2">Destino</th><th class="p-2">Estado</th><th class="p-2">Acciones</th></tr>
+                            <tr><th class="p-2">Fecha</th><th class="p-2">Vehículo</th><th class="p-2">Chofer</th><th class="p-2">Destino</th><th class="p-2">Dinero de viaje</th><th class="p-2">Estado</th><th class="p-2">Acciones</th></tr>
                         </thead>
                         <tbody id="tablaViajes"></tbody>
                     </table>
@@ -822,6 +823,7 @@
                 vehiculoNombre: vehiculoNombre,
                 chofer: document.getElementById('vj_chofer').value,
                 destino: document.getElementById('vj_destino').value,
+                dineroViaje: Number(document.getElementById('vj_dinero').value),
                 estado: document.getElementById('vj_estado').value
             };
 
@@ -866,13 +868,14 @@
 
         function renderViajes(list) {
             const tbody = document.getElementById('tablaViajes');
-            if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
+            if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="p-3 text-center text-gray-400">Sin registros.</td></tr>'; return; }
             tbody.innerHTML = list.map(item => `
                 <tr class="border-b hover:bg-gray-50">
                     <td class="p-2 font-semibold">${item.fecha}</td>
                     <td class="p-2 font-bold text-blue-800">${item.vehiculoNombre}</td>
                     <td class="p-2 font-semibold text-gray-800">${item.chofer}</td>
                     <td class="p-2">${item.destino}</td>
+                    <td class="p-2 font-bold text-emerald-700 whitespace-nowrap">${formatearDinero(item.dineroViaje)}</td>
                     <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.estado === 'Realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${item.estado}</span></td>
                     <td class="p-2 flex gap-2">
                         <button onclick="cambiarEstadoViaje('${item.vehiculoId}', ${item.originalIndex})" class="text-blue-600 font-semibold hover:underline">Cambiar Estado</button>
@@ -888,6 +891,11 @@
             const partes = fecha.split('-');
             if (partes.length !== 3) return fecha;
             return `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+
+        function formatearDinero(monto) {
+            const valor = Number(monto);
+            return Number.isFinite(valor) ? `$${valor.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : '—';
         }
 
         function renderPanelesVehiculosIndividuales() {
@@ -1005,6 +1013,7 @@
                                             <th class="px-3 py-2">Fecha</th>
                                             <th class="px-3 py-2">Vehículo</th>
                                             <th class="px-3 py-2">Destino</th>
+                                            <th class="px-3 py-2 text-right">Dinero de viaje</th>
                                             <th class="px-3 py-2 text-right">Estado</th>
                                         </tr>
                                     </thead>
@@ -1014,6 +1023,7 @@
                                                 <td class="px-3 py-2 font-bold text-slate-700 whitespace-nowrap">${formatearFecha(item.fecha)}</td>
                                                 <td class="px-3 py-2 text-blue-700 font-semibold whitespace-nowrap">${item.vehiculoNombre || item.vehiculoId}</td>
                                                 <td class="px-3 py-2 text-slate-600">${item.destino || 'Sin destino'}</td>
+                                                <td class="px-3 py-2 text-right font-bold text-emerald-700 whitespace-nowrap">${formatearDinero(item.dineroViaje)}</td>
                                                 <td class="px-3 py-2 text-right">
                                                     <span class="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${item.estado === 'Realizado' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${item.estado || 'Pendiente'}</span>
                                                 </td>
